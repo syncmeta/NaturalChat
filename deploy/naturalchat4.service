@@ -1,0 +1,19 @@
+[Unit]
+Description=NaturalChat4 Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/naturalchat4
+ExecStart=/opt/naturalchat4/venv/bin/python3 main.py
+Restart=on-failure
+RestartSec=5
+MemoryMax=512M
+Environment=PYTHONUNBUFFERED=1
+Environment=TZ=Asia/Shanghai
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

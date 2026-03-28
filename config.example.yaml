@@ -1,0 +1,6 @@
+# 全局配置 - 对所有机器人生效
+env:
+  # 填入 Serper.dev API Key 后所有 bot 的搜索将使用 Google 结果，留空则用 DuckDuckGo
+  SERPER_API_KEY: ""
+
+rsshub_server: "https://rsshub.app"

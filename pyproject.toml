@@ -1,0 +1,26 @@
+[project]
+name = "naturalchat4"
+version = "0.1.0"
+description = "多平台聊天机器人框架 - 支持 Telegram、Matrix、飞书、XMPP"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+dependencies = [
+    "slixmpp>=1.8.0,<1.9",
+    "openai>=1.0.0",
+    "pyyaml>=6.0",
+    "aiohttp",
+    "feedparser",
+    "duckduckgo-search",
+    "memobase==0.0.27",
+    "python-telegram-bot>=21.0",
+    "matrix-nio>=0.21.0",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E501"]
