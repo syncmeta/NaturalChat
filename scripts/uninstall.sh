@@ -45,6 +45,10 @@ if [[ -f "$BASE_DIR/docker/docker-compose.yml" ]] && command -v docker &>/dev/nu
     if [[ -n "${CP:-}" ]]; then
         docker ps -a --filter "label=com.docker.compose.project=$CP" -q 2>/dev/null | xargs -r docker rm -f 2>/dev/null || true
         docker network ls --filter "label=com.docker.compose.project=$CP" -q 2>/dev/null | xargs -r docker network rm 2>/dev/null || true
+        # Explicitly remove named volumes (conduit-data, memobase-pg)
+        for vol in "${CP}_conduit-data" "${CP}_memobase-pg"; do
+            docker volume rm "$vol" 2>/dev/null || true
+        done
     fi
 fi
 

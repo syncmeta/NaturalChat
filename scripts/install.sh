@@ -14,7 +14,7 @@ trap 'echo ""; echo "[CRASH] Script failed at line $LINENO (exit code $?)" >&2' 
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'
 BOLD='\033[1m'; DIM='\033[2m'; NC='\033[0m'
-PURPLE='\033[1;35m'
+PURPLE='\033[1;38;2;111;83;250m'
 
 LANG_UI="en"
 
@@ -140,6 +140,54 @@ i18n() {
         zh:web_panel) echo "网页面板" ;;
         en:missing_creds_warn) echo "Missing credentials (fill before starting):" ;;
         zh:missing_creds_warn) echo "缺失的凭据（启动前请填写）：" ;;
+
+        # ── Config overview ──
+        en:cfg_hint) echo "No special needs? Just fill in an OpenRouter key. Select \"Start install\" to begin." ;;
+        zh:cfg_hint) echo "如果没什么特殊要求，填一个 OpenRouter 的 key 就可以了。选择「开始安装」即可。" ;;
+        en:cfg_start_install) echo ">>> Start install" ;;
+        zh:cfg_start_install) echo ">>> 开始安装" ;;
+
+        # ── Installing ──
+        en:installing) echo "Installing" ;;
+        zh:installing) echo "安装中" ;;
+
+        # ── Matrix registration ──
+        en:reg_bot_user) echo "Registering Matrix bot user" ;;
+        zh:reg_bot_user) echo "注册 Matrix 机器人用户" ;;
+        en:reg_bot_ok) echo "Bot registered" ;;
+        zh:reg_bot_ok) echo "机器人已注册" ;;
+        en:reg_bot_exists_ok) echo "Bot user exists, logged in" ;;
+        zh:reg_bot_exists_ok) echo "机器人用户已存在，已登录" ;;
+        en:reg_bot_exists_fail) echo "Bot user exists but login failed (password mismatch?)" ;;
+        zh:reg_bot_exists_fail) echo "机器人用户已存在但登录失败（密码不匹配？）" ;;
+        en:reg_bot_fail) echo "Failed to register Matrix bot user" ;;
+        zh:reg_bot_fail) echo "注册 Matrix 机器人用户失败" ;;
+        en:reg_test) echo "Registering test account" ;;
+        zh:reg_test) echo "注册测试账号" ;;
+        en:reg_test_ok) echo "Test account registered" ;;
+        zh:reg_test_ok) echo "测试账号已注册" ;;
+        en:reg_test_exists_ok) echo "Test account exists, logged in" ;;
+        zh:reg_test_exists_ok) echo "测试账号已存在，已登录" ;;
+        en:reg_test_exists_fail) echo "Test account exists but login failed" ;;
+        zh:reg_test_exists_fail) echo "测试账号已存在但登录失败" ;;
+        en:reg_test_fail) echo "Failed to register test account" ;;
+        zh:reg_test_fail) echo "注册测试账号失败" ;;
+        en:reg_dm_creating) echo "Creating DM room..." ;;
+        zh:reg_dm_creating) echo "创建私聊..." ;;
+        en:reg_dm_ok) echo "DM room created" ;;
+        zh:reg_dm_ok) echo "私聊已创建" ;;
+        en:reg_dm_fail) echo "Could not create DM room" ;;
+        zh:reg_dm_fail) echo "无法创建私聊" ;;
+        en:conduit_not_ready) echo "Conduit did not start in time" ;;
+        zh:conduit_not_ready) echo "Conduit 未能及时启动" ;;
+        en:port_conflict) echo "Port conflict, switching Conduit to port" ;;
+        zh:port_conflict) echo "端口冲突，Conduit 切换到端口" ;;
+
+        # ── Completion ──
+        en:test_account_label) echo "Test account (Element):" ;;
+        zh:test_account_label) echo "测试账号 (Element)：" ;;
+        en:manage_hint) echo "Use nctl.sh to manage, configure, start/stop, and view this info again." ;;
+        zh:manage_hint) echo "后续管理请运行 nctl.sh" ;;
 
         *) echo "$key" ;;
     esac
@@ -781,8 +829,8 @@ else
 
     # ── Display config overview with arrow-key navigation ────────────────
 
-    # Config items: 1=bot_name 2=channels 3=base_url 4=model 5=api_key 6=access 7=components
-    CFG_ITEM_COUNT=7
+    # Config items: 1=bot_name 2=channels 3=base_url 4=model 5=api_key 6=access 7=components 8=start_install
+    CFG_ITEM_COUNT=8
     # Default cursor on API Key (item 5, 0-based index 4)
     CFG_SELECTED=4
 
@@ -796,6 +844,7 @@ else
             5) echo "$(i18n cfg_api_key)" ;;
             6) echo "$(i18n cfg_access)" ;;
             7) echo "$(i18n cfg_components)" ;;
+            8) echo "$(i18n cfg_start_install)" ;;
         esac
     }
 
@@ -808,24 +857,30 @@ else
             5) _mask_key "$API_KEY" ;;
             6) echo "$ACCESS_MODE" ;;
             7) echo "$(_comp_summary)" ;;
+            8) echo "" ;;
         esac
     }
 
     _draw_config() {
-        # Instruction lines (always bilingual)
         echo ""
-        printf "  如果没什么特殊要求，填一个 OpenRouter 的 key 就可以了。回车开始安装。\n"
-        printf "  No special needs? Just fill in an OpenRouter key and press Enter to install.\n"
+        printf "  ${DIM}$(i18n cfg_hint)${NC}\n"
         echo ""
 
         for ((i = 1; i <= CFG_ITEM_COUNT; i++)); do
             local label="$(_config_labels "$i")"
             local value="$(_config_values "$i")"
-            local idx_display="$i"
-            if [[ $(( i - 1 )) -eq $CFG_SELECTED ]]; then
-                printf "  ${GREEN}${BOLD}> ${PURPLE}%s${NC}  ${GREEN}${BOLD}%-22s %b${NC}\n" "$idx_display" "$label" "$value"
+            if [[ "$i" -eq 8 ]]; then
+                # Start install item — special rendering (no number)
+                echo ""
+                if [[ $(( i - 1 )) -eq $CFG_SELECTED ]]; then
+                    printf "  ${GREEN}${BOLD}> %s${NC}\n" "$label"
+                else
+                    printf "    ${DIM}%s${NC}\n" "$label"
+                fi
+            elif [[ $(( i - 1 )) -eq $CFG_SELECTED ]]; then
+                printf "  ${GREEN}${BOLD}> ${PURPLE}%s${NC}  ${GREEN}${BOLD}%-22s %b${NC}\n" "$i" "$label" "$value"
             else
-                printf "    ${PURPLE}%s${NC}  %-22s %b\n" "$idx_display" "$label" "$value"
+                printf "    ${PURPLE}%s${NC}  %-22s %b\n" "$i" "$label" "$value"
             fi
         done
         echo ""
@@ -994,16 +1049,12 @@ else
 
     # ── Main config loop (arrow-key navigation) ──────────────────────────
 
-    LAST_EDITED=""
     while true; do
         # Clear screen area and draw
         _draw_config
 
         # Hide cursor during navigation
         printf "\033[?25l" >&2
-
-        # Track if user moved the cursor
-        MOVED=false
 
         # Read arrow keys for navigation
         while true; do
@@ -1013,35 +1064,34 @@ else
                     IFS= read -rsn2 rest </dev/tty
                     case "$rest" in
                         '[A')  # Up arrow
-                            ((CFG_SELECTED > 0)) && { ((CFG_SELECTED--)); MOVED=true; }
+                            ((CFG_SELECTED > 0)) && ((CFG_SELECTED--))
                             ;;
                         '[B')  # Down arrow
-                            ((CFG_SELECTED < CFG_ITEM_COUNT - 1)) && { ((CFG_SELECTED++)); MOVED=true; }
+                            ((CFG_SELECTED < CFG_ITEM_COUNT - 1)) && ((CFG_SELECTED++))
                             ;;
                     esac
                     ;;
-                'k') ((CFG_SELECTED > 0)) && { ((CFG_SELECTED--)); MOVED=true; } ;;
-                'j') ((CFG_SELECTED < CFG_ITEM_COUNT - 1)) && { ((CFG_SELECTED++)); MOVED=true; } ;;
+                'k') ((CFG_SELECTED > 0)) && ((CFG_SELECTED--)) ;;
+                'j') ((CFG_SELECTED < CFG_ITEM_COUNT - 1)) && ((CFG_SELECTED++)) ;;
                 '')  # Enter
                     printf "\033[?25h" >&2
                     break
                     ;;
             esac
             # Redraw: move cursor up and redraw the config
-            # 2 instruction lines + 1 blank + CFG_ITEM_COUNT items + 2 blanks = CFG_ITEM_COUNT + 5
+            # 1 hint + 1 blank + 7 items + 1 blank + 1 start_install + 2 blanks = CFG_ITEM_COUNT + 5
             printf "\033[%dA" "$(( CFG_ITEM_COUNT + 5 ))" >&2
             _draw_config
         done
 
-        # If user didn't move and pressed Enter = confirm and start install
-        if [[ "$MOVED" == "false" ]] && [[ -n "$LAST_EDITED" ]]; then
+        # Item 8 = Start install
+        EDIT_NUM=$(( CFG_SELECTED + 1 ))
+        if [[ "$EDIT_NUM" -eq 8 ]]; then
             break
         fi
 
-        # Edit selected item (1-based)
-        EDIT_NUM=$(( CFG_SELECTED + 1 ))
+        # Edit selected config item
         _edit_item "$EDIT_NUM"
-        LAST_EDITED="$EDIT_NUM"
     done
 
     # ── Derive Conduit bot user from BOT_NAME ──
@@ -1071,7 +1121,7 @@ fi
 # ═════════════════════════════════════════════════════════════════════════════
 
 echo ""
-printf "${PURPLE}安装 / Installing${NC}\n"
+printf "${PURPLE}$(i18n installing)${NC}\n"
 echo ""
 
 # ── Reload saved vars ──
@@ -1523,7 +1573,21 @@ if [[ "$NEEDS_CONDUIT" == "true" ]] && port_in_use "$CONDUIT_PORT"; then
     save_var MATRIX_HOMESERVER "$MATRIX_HOMESERVER"
     sed -i.bak "s/^CONDUIT_PORT=.*/CONDUIT_PORT=$CONDUIT_PORT/" "$BASE_DIR/.env" 2>/dev/null || true
     rm -f "$BASE_DIR/.env.bak"
-    warn "端口冲突，Conduit 切换到端口 $CONDUIT_PORT / Port conflict, switching Conduit to port $CONDUIT_PORT"
+    warn "$(i18n port_conflict) $CONDUIT_PORT"
+fi
+
+# ── Clean stale Conduit volume from previous install ──
+# If the old volume exists under a different project name, registration will fail
+# with M_USER_IN_USE but the password won't match. Remove it for a clean start.
+if [[ "$NEEDS_CONDUIT" == "true" ]]; then
+    OLD_VOL="${COMPOSE_PROJECT}_conduit-data"
+    if docker volume inspect "$OLD_VOL" &>/dev/null 2>&1; then
+        # Check if any container is using it; if not, remove it
+        USING="$(docker ps -a --filter "volume=$OLD_VOL" -q 2>/dev/null)" || true
+        if [[ -z "$USING" ]]; then
+            docker volume rm "$OLD_VOL" &>/dev/null || true
+        fi
+    fi
 fi
 
 if docker compose $PROJECT_FLAG $PROFILE_FLAGS --env-file "$BASE_DIR/.env" -f "$BASE_DIR/docker/docker-compose.yml" up -d --build 2>&1; then
@@ -1550,79 +1614,96 @@ if [[ "$NEEDS_CONDUIT" == "true" ]] && [[ -n "${CONDUIT_BOT_USER:-}" ]]; then
     if [[ "$CONDUIT_READY" == "true" ]]; then
         CONDUIT_API="http://127.0.0.1:${CONDUIT_PORT}"
 
-        # ── 1. Register bot user ──
-        info "注册 Matrix 机器人用户 / Registering Matrix bot user: $MATRIX_USER_ID"
-        REG_RESULT="$(curl -sf -X POST "${CONDUIT_API}/_matrix/client/r0/register" \
-            -H "Content-Type: application/json" \
-            -d "{\"username\": \"${CONDUIT_BOT_USER}\", \"password\": \"${MATRIX_PASSWORD}\", \"auth\": {\"type\": \"m.login.dummy\"}}" 2>&1)" || true
+        # Helper: try register, fall back to login. Sets _TOKEN var.
+        _matrix_register_or_login() {
+            local username="$1" password="$2" token_var="$3"
+            local reg_result login_result token=""
 
-        BOT_TOKEN=""
-        if echo "$REG_RESULT" | grep -q "access_token"; then
-            BOT_TOKEN="$(json_val "$REG_RESULT" "access_token")" || true
-            if [[ -n "$BOT_TOKEN" ]]; then
-                MATRIX_ACCESS_TOKEN="$BOT_TOKEN"
-                save_var MATRIX_ACCESS_TOKEN "$MATRIX_ACCESS_TOKEN"
-            fi
-            ok "Matrix 机器人已注册 / Bot registered: $MATRIX_USER_ID"
-        elif echo "$REG_RESULT" | grep -q "M_USER_IN_USE"; then
-            # Already exists — login to get a fresh token
-            LOGIN_RESULT="$(curl -sf -X POST "${CONDUIT_API}/_matrix/client/r0/login" \
+            reg_result="$(curl -s -X POST "${CONDUIT_API}/_matrix/client/r0/register" \
                 -H "Content-Type: application/json" \
-                -d "{\"type\": \"m.login.password\", \"user\": \"${CONDUIT_BOT_USER}\", \"password\": \"${MATRIX_PASSWORD}\"}" 2>&1)" || true
-            BOT_TOKEN="$(json_val "$LOGIN_RESULT" "access_token")" || true
-            if [[ -n "$BOT_TOKEN" ]]; then
-                MATRIX_ACCESS_TOKEN="$BOT_TOKEN"
-                save_var MATRIX_ACCESS_TOKEN "$MATRIX_ACCESS_TOKEN"
-                ok "机器人用户已存在，已登录 / Bot user exists, logged in: $MATRIX_USER_ID"
+                -d "{\"username\": \"${username}\", \"password\": \"${password}\", \"auth\": {\"type\": \"m.login.dummy\"}}" 2>&1)" || true
+
+            if echo "$reg_result" | grep -q "access_token"; then
+                token="$(json_val "$reg_result" "access_token")" || true
+                eval "$token_var=\"\$token\""
+                return 0  # registered
+            elif echo "$reg_result" | grep -q "M_USER_IN_USE"; then
+                # Already exists — login
+                login_result="$(curl -s -X POST "${CONDUIT_API}/_matrix/client/r0/login" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"type\": \"m.login.password\", \"user\": \"${username}\", \"password\": \"${password}\"}" 2>&1)" || true
+                token="$(json_val "$login_result" "access_token")" || true
+                if [[ -n "$token" ]]; then
+                    eval "$token_var=\"\$token\""
+                    return 1  # logged in (existed)
+                else
+                    # Login failed — output error details
+                    warn "Login failed response: $login_result"
+                    eval "$token_var=\"\""
+                    return 2  # failed
+                fi
             else
-                warn "机器人用户已存在但登录失败 / Bot user exists but login failed (password mismatch?)"
+                # Registration failed for unknown reason — output error details
+                warn "Register failed response: $reg_result"
+                eval "$token_var=\"\""
+                return 2  # failed
             fi
+        }
+
+        # ── 1. Register bot user ──
+        info "$(i18n reg_bot_user): $MATRIX_USER_ID"
+        BOT_TOKEN=""
+        _reg_rc=0
+        _matrix_register_or_login "$CONDUIT_BOT_USER" "$MATRIX_PASSWORD" "BOT_TOKEN" || _reg_rc=$?
+
+        if [[ "$_reg_rc" -eq 0 ]] && [[ -n "$BOT_TOKEN" ]]; then
+            MATRIX_ACCESS_TOKEN="$BOT_TOKEN"
+            save_var MATRIX_ACCESS_TOKEN "$MATRIX_ACCESS_TOKEN"
+            ok "$(i18n reg_bot_ok): $MATRIX_USER_ID"
+        elif [[ "$_reg_rc" -eq 1 ]] && [[ -n "$BOT_TOKEN" ]]; then
+            MATRIX_ACCESS_TOKEN="$BOT_TOKEN"
+            save_var MATRIX_ACCESS_TOKEN "$MATRIX_ACCESS_TOKEN"
+            ok "$(i18n reg_bot_exists_ok): $MATRIX_USER_ID"
         else
-            warn "注册 Matrix 机器人用户失败 / Failed to register Matrix bot user"
+            warn "$(i18n reg_bot_fail)"
         fi
 
         # ── 2. Register test/admin account ──
-        CONDUIT_TEST_USER="${DEFAULT_CONDUIT_TEST_USER:-creator-$(random_chars 6)}"
-        CONDUIT_TEST_PASSWORD="${DEFAULT_CONDUIT_TEST_PASSWORD:-$(random_chars 12)}"
+        # Try to reuse saved test user from previous install
+        _saved_test_user="$(load_var CONDUIT_TEST_USER "")"
+        _saved_test_pw="$(load_var CONDUIT_TEST_PASSWORD "")"
+        if [[ -n "$_saved_test_user" ]] && [[ -n "$_saved_test_pw" ]]; then
+            CONDUIT_TEST_USER="$_saved_test_user"
+            CONDUIT_TEST_PASSWORD="$_saved_test_pw"
+        else
+            CONDUIT_TEST_USER="${DEFAULT_CONDUIT_TEST_USER:-creator-$(random_chars 6)}"
+            CONDUIT_TEST_PASSWORD="${DEFAULT_CONDUIT_TEST_PASSWORD:-$(random_chars 12)}"
+        fi
         CONDUIT_TEST_USER_ID="@${CONDUIT_TEST_USER}:${CONDUIT_SERVER_NAME}"
 
-        info "注册测试账号 / Registering test account: $CONDUIT_TEST_USER_ID"
-        TEST_REG="$(curl -sf -X POST "${CONDUIT_API}/_matrix/client/r0/register" \
-            -H "Content-Type: application/json" \
-            -d "{\"username\": \"${CONDUIT_TEST_USER}\", \"password\": \"${CONDUIT_TEST_PASSWORD}\", \"auth\": {\"type\": \"m.login.dummy\"}}" 2>&1)" || true
-
+        info "$(i18n reg_test): $CONDUIT_TEST_USER_ID"
         TEST_TOKEN=""
-        if echo "$TEST_REG" | grep -q "access_token"; then
-            TEST_TOKEN="$(json_val "$TEST_REG" "access_token")" || true
+        _reg_rc=0
+        _matrix_register_or_login "$CONDUIT_TEST_USER" "$CONDUIT_TEST_PASSWORD" "TEST_TOKEN" || _reg_rc=$?
+
+        if [[ "$_reg_rc" -le 1 ]] && [[ -n "$TEST_TOKEN" ]]; then
             save_var CONDUIT_TEST_USER "$CONDUIT_TEST_USER"
             save_var CONDUIT_TEST_PASSWORD "$CONDUIT_TEST_PASSWORD"
             save_var CONDUIT_TEST_USER_ID "$CONDUIT_TEST_USER_ID"
-            ok "测试账号已注册 / Test account registered: $CONDUIT_TEST_USER_ID"
-        elif echo "$TEST_REG" | grep -q "M_USER_IN_USE"; then
-            # Already exists — login with current password (from defaults or random)
-            _saved_pw="$(load_var CONDUIT_TEST_PASSWORD "")"
-            [[ -n "$_saved_pw" ]] && CONDUIT_TEST_PASSWORD="$_saved_pw"
-            LOGIN_RESULT="$(curl -sf -X POST "${CONDUIT_API}/_matrix/client/r0/login" \
-                -H "Content-Type: application/json" \
-                -d "{\"type\": \"m.login.password\", \"user\": \"${CONDUIT_TEST_USER}\", \"password\": \"${CONDUIT_TEST_PASSWORD}\"}" 2>&1)" || true
-            TEST_TOKEN="$(json_val "$LOGIN_RESULT" "access_token")" || true
-            if [[ -n "$TEST_TOKEN" ]]; then
-                save_var CONDUIT_TEST_USER "$CONDUIT_TEST_USER"
-                save_var CONDUIT_TEST_PASSWORD "$CONDUIT_TEST_PASSWORD"
-                save_var CONDUIT_TEST_USER_ID "$CONDUIT_TEST_USER_ID"
-                ok "测试账号已存在，已登录 / Test account exists, logged in: $CONDUIT_TEST_USER_ID"
+            if [[ "$_reg_rc" -eq 0 ]]; then
+                ok "$(i18n reg_test_ok): $CONDUIT_TEST_USER_ID"
             else
-                warn "测试账号已存在但登录失败 / Test account exists but login failed"
+                ok "$(i18n reg_test_exists_ok): $CONDUIT_TEST_USER_ID"
             fi
         else
-            warn "注册测试账号失败 / Failed to register test account"
+            warn "$(i18n reg_test_fail)"
         fi
 
         # ── 3. Create DM room between test user and bot ──
         if [[ -n "$TEST_TOKEN" ]] && [[ -n "$BOT_TOKEN" ]]; then
-            info "创建测试账号与机器人的私聊 / Creating DM room..."
+            info "$(i18n reg_dm_creating)"
             # Test user creates a DM room and invites the bot
-            ROOM_RESULT="$(curl -sf -X POST "${CONDUIT_API}/_matrix/client/r0/createRoom" \
+            ROOM_RESULT="$(curl -s -X POST "${CONDUIT_API}/_matrix/client/r0/createRoom" \
                 -H "Content-Type: application/json" \
                 -H "Authorization: Bearer ${TEST_TOKEN}" \
                 -d "{
@@ -1639,14 +1720,14 @@ if [[ "$NEEDS_CONDUIT" == "true" ]] && [[ -n "${CONDUIT_BOT_USER:-}" ]]; then
                     -H "Content-Type: application/json" \
                     -H "Authorization: Bearer ${BOT_TOKEN}" \
                     -d '{}' &>/dev/null || true
-                ok "私聊已创建 / DM room created"
+                ok "$(i18n reg_dm_ok)"
                 save_var CONDUIT_TEST_ROOM_ID "$ROOM_ID"
             else
-                warn "无法创建私聊 / Could not create DM room"
+                warn "$(i18n reg_dm_fail)"
             fi
         fi
     else
-        warn "Conduit 未能及时启动 / Conduit did not start in time"
+        warn "$(i18n conduit_not_ready)"
     fi
 fi
 
@@ -1655,7 +1736,7 @@ fi
 # ═════════════════════════════════════════════════════════════════════════════
 
 echo ""
-printf "${PURPLE}安装完成 / Setup Complete${NC}\n"
+printf "${PURPLE}$(i18n setup_complete)${NC}\n"
 echo ""
 
 # ── Web Panel ──
@@ -1674,7 +1755,7 @@ if [[ -n "$CONDUIT_TEST_USER" ]] && [[ -n "$CONDUIT_TEST_PASSWORD" ]]; then
     printf "  Homeserver: http://127.0.0.1:${CONDUIT_PORT}\n"
     printf "  Bot:        $MATRIX_USER_ID\n"
     echo ""
-    printf "  ${GREEN}Test account / 测试账号 (Element):${NC}\n"
+    printf "  ${GREEN}$(i18n test_account_label)${NC}\n"
     printf "  User:     $CONDUIT_TEST_USER_ID\n"
     printf "  Password: $CONDUIT_TEST_PASSWORD\n"
     echo ""
@@ -1695,7 +1776,7 @@ if (( ${#MISSING[@]} > 0 )); then
 fi
 
 # ── Final management hint ──
-printf "  后续管理请运行 nctl.sh / Use nctl.sh to manage, configure, start/stop, and view this info again.\n"
+printf "  $(i18n manage_hint)\n"
 echo ""
 
 # Keep install state for nctl.sh info command (already gitignored)
