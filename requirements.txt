@@ -1,0 +1,9 @@
+slixmpp>=1.8.0,<1.9
+openai>=1.0.0
+pyyaml>=6.0
+aiohttp
+feedparser
+duckduckgo-search
+memobase==0.0.27
+python-telegram-bot>=21.0
+matrix-nio>=0.21.0

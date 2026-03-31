@@ -1,0 +1,80 @@
+# NaturalChat4 Bot 配置模板（非敏感）
+# 这是公开仓库里的标准 example bot 模板。
+# 凭证请放到同目录下的 secrets.yaml
+# Prompt 请修改 bots/<bot>/prompts/ 目录中的文件，registry.yaml 会注明用途和注入位置
+
+transports:
+  telegram:
+    enabled: true
+    # token 放到 secrets.yaml，可直接用来本地调试
+
+  # matrix:
+  #   enabled: true
+  #   homeserver_url: "https://matrix.org"
+  #   user_id: "@mybot:matrix.org"
+  #   # access_token / password 放到 secrets.yaml
+
+  # feishu:
+  #   enabled: true
+  #   app_id: ""
+  #   webhook_port: 9000
+  #   # app_secret / verification_token / encrypt_key 放到 secrets.yaml
+
+  # xmpp:
+  #   enabled: true
+  #   jid: "bot@your-server.com"
+  #   xmpp_host: "localhost"
+  #   xmpp_port: 5222
+  #   # password 放到 secrets.yaml
+
+reflection_delay: 30
+msg_wait_initial: 2.5
+msg_wait_after_typing_stop: 5.0
+typing_hard_timeout: 10.0
+
+llm:
+  base_url: "https://api.openai.com/v1"
+  model: "gpt-4o-mini"
+  max_history_tokens: 4000
+  # api_key 放到 secrets.yaml
+
+token_budget:
+  default_score: 50
+
+models:
+  # 这些都是可选的附加模型。
+  # 不填时，系统只使用 llm 段的主聊天模型。
+  # - name: "critic-1"
+  #   role: critic
+  #   model: "gpt-4o-mini"
+  # - name: "critic-2"
+  #   role: critic
+  #   model: "gpt-4o-mini"
+  # - name: "surfing-planner"
+  #   role: surfing
+  #   model: "gpt-4o-mini"
+  # - name: "surfing-evaluator"
+  #   role: surfing_eval
+  #   model: "gpt-4o-mini"
+  # - name: "debounce"
+  #   role: debounce
+  #   model: "gpt-4o-mini"
+
+critic:
+  enabled: false
+  trigger_marker: "[NEED_REVIEW]"
+  correction_delay: 5.0
+  timeout: 30
+
+surfing:
+  enabled: false
+  min_interval: 1800
+  max_interval: 7200
+  max_queries_per_round: 3
+  idle_threshold: 7200
+  quiet_hours: [0, 8]
+
+memobase:
+  # 本地有 Memobase 时再开启；默认不依赖它
+  url: ""
+  # api_key 放到 secrets.yaml
