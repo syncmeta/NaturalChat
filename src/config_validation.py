@@ -116,6 +116,8 @@ def _validate_transports(transports: Dict[str, Any], errors: List[str]) -> None:
         enabled_count += 1
         if name == "telegram":
             _require_str(cfg, "token", "transports.telegram.token", errors)
+        elif name == "web":
+            pass
         elif name == "xmpp":
             _require_str(cfg, "jid", "transports.xmpp.jid", errors)
             _require_str(cfg, "password", "transports.xmpp.password", errors)

@@ -1,0 +1,111 @@
+services:
+  bot:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    profiles: ["bot"]
+    network_mode: host
+    volumes:
+      - ../bots:/app/bots
+      - ../workspace:/app/workspace
+      - ../logs:/app/logs
+      - ../config.yaml:/app/config.yaml:ro
+      - ../web_panel.yaml:/app/web_panel.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock  # Docker sandbox
+    restart: unless-stopped
+    env_file:
+      - ../.env
+
+  # Matrix homeserver (Conduit) - lightweight, Rust-based
+  # Usage: docker compose --profile matrix up
+  conduit:
+    image: matrixconduit/matrix-conduit:latest
+    profiles: ["matrix"]
+    network_mode: host
+    volumes:
+      - conduit-data:/var/lib/matrix-conduit
+      - ./conduit.toml:/etc/conduit/conduit.toml:ro
+    environment:
+      CONDUIT_CONFIG: "/etc/conduit/conduit.toml"
+      CONDUIT_SERVER_NAME: "${CONDUIT_SERVER_NAME:-localhost}"
+      CONDUIT_PORT: "${CONDUIT_PORT:-6167}"
+      CONDUIT_ALLOW_REGISTRATION: "${CONDUIT_ALLOW_REGISTRATION:-true}"
+    restart: unless-stopped
+
+  # Memobase memory system (optional)
+  # Usage: docker compose --profile memobase up
+  memobase-db:
+    image: pgvector/pgvector:pg15
+    profiles: ["memobase"]
+    environment:
+      POSTGRES_DB: memobase
+      POSTGRES_USER: memobase
+      POSTGRES_PASSWORD: "${MEMOBASE_DB_PASSWORD:-memobase}"
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - memobase-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U memobase -d memobase"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  memobase-redis:
+    image: redis:7.4
+    profiles: ["memobase"]
+    command: ["redis-server", "--requirepass", "${MEMOBASE_REDIS_PASSWORD:-memobase}"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${MEMOBASE_REDIS_PASSWORD:-memobase}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  memobase-api:
+    image: ghcr.io/memodb-io/memobase:latest
+    platform: linux/amd64
+    profiles: ["memobase"]
+    depends_on:
+      memobase-db:
+        condition: service_healthy
+      memobase-redis:
+        condition: service_healthy
+    ports:
+      - "${MEMOBASE_PORT:-8019}:8000"
+    environment:
+      DATABASE_URL: "postgresql://memobase:${MEMOBASE_DB_PASSWORD:-memobase}@memobase-db:5432/memobase"
+      REDIS_URL: "redis://:${MEMOBASE_REDIS_PASSWORD:-memobase}@memobase-redis:6379/0"
+      ACCESS_TOKEN: "${MEMOBASE_ACCESS_TOKEN:-secret}"
+      PROJECT_ID: "${MEMOBASE_PROJECT_ID:-naturalchat}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../memobase-config.yaml:/app/config.yaml
+    restart: unless-stopped
+
+  # Crawl4AI - LLM-ready web crawling (optional)
+  # Usage: docker compose --profile crawl4ai up
+  crawl4ai:
+    image: unclecode/crawl4ai:latest
+    profiles: ["crawl4ai"]
+    ports:
+      - "${CRAWL4AI_PORT:-11235}:11235"
+    shm_size: 1g
+    restart: unless-stopped
+
+  # RSSHub - RSS feed aggregation (optional)
+  # Usage: docker compose --profile rsshub up
+  rsshub:
+    image: diygod/rsshub:latest
+    profiles: ["rsshub"]
+    ports:
+      - "${RSSHUB_PORT:-1200}:1200"
+    environment:
+      NODE_ENV: production
+      CACHE_TYPE: memory
+    restart: unless-stopped
+
+volumes:
+  conduit-data:
+  memobase-pg:

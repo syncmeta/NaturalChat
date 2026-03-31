@@ -73,19 +73,22 @@ class WebTransport(TransportClient):
         """Called by the web panel server when a message arrives via WebSocket."""
         prefixed_id = self.make_prefixed_id(session_id)
 
-        # Check access
+        # Slash commands use the shared command router, same as other transports.
+        if self._command_router and text.startswith("/"):
+            handled = await self._command_router.handle_command(prefixed_id, text)
+            if handled:
+                return
+
+        if self._command_router and await self._command_router.handle_governance_nl(prefixed_id, text):
+            return
+
+        # Check access for regular chat messages.
         if self.brain and not self.brain.can_chat_with(prefixed_id):
             await self._ws_send(session_id, {
                 "type": "error",
                 "text": "Access denied. Contact the bot admin.",
             })
             return
-
-        # Check for slash commands
-        if self._command_router and text.startswith("/"):
-            handled = await self._command_router.handle_governance_nl(prefixed_id, text)
-            if handled:
-                return
 
         # Buffer message (triggers debounce -> brain processing -> send_message_to callback)
         self._buffer_message(prefixed_id, text)

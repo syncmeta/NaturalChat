@@ -6,8 +6,6 @@ __pycache__/
 workspace/
 .claude/
 memobase/
-deploy/
-deploy.sh
 .install_state/
 bots/
 !bots/example/
@@ -18,5 +16,7 @@ bots/
 *.tar.gz
 .env
 web_panel.yaml
+memobase-config.yaml
 local/
+!install.defaults.example
 /config.yaml

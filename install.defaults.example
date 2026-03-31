@@ -1,0 +1,12 @@
+# Copy this file to local/install.defaults and fill in your own values.
+# install.sh will load local/install.defaults automatically if it exists.
+
+DEFAULT_API_KEY=""
+DEFAULT_BASE_URL="https://openrouter.ai/api/v1"
+DEFAULT_MODEL="openrouter/auto"
+
+DEFAULT_MEMOBASE_URL="http://localhost:8019"
+DEFAULT_MEMOBASE_KEY="secret"
+
+DEFAULT_RSSHUB_URL="https://rsshub.app"
+DEFAULT_SERPER_KEY=""

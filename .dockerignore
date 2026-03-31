@@ -1,0 +1,33 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+.git
+.claude/
+.install_state/
+
+# User data (mounted as volumes, not baked into image)
+bots/
+workspace/
+logs/
+local/
+
+# Config files (mounted at runtime)
+config.yaml
+web_panel.yaml
+memobase-config.yaml
+.env
+.env.example
+
+# Deployment & scripts (not needed in image)
+deploy/
+scripts/
+docker/
+docs/
+*.md
+*.tar.gz
+
+# Old files
+install.py
+install.defaults.example

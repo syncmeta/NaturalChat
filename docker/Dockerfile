@@ -9,13 +9,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy source code
 COPY src/ src/
 COPY common_skills/ common_skills/
-COPY main.py manage.py install.py install.sh ./
-COPY *.md ./
+COPY prompts/ prompts/
+COPY main.py manage.py ./
 
-# Volumes for user data
-VOLUME ["/app/bots", "/app/workspace"]
+# Volumes for user data (mounted at runtime)
+VOLUME ["/app/bots", "/app/workspace", "/app/logs"]
 
-# Feishu webhook
-EXPOSE 9000
+# Web panel + Feishu webhook
+EXPOSE 8080 9000
 
 CMD ["python", "main.py"]
