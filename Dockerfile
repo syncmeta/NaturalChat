@@ -9,7 +9,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy source code
 COPY src/ src/
 COPY common_skills/ common_skills/
-COPY main.py manage.py install.py ./
+COPY main.py manage.py install.py install.sh ./
 COPY *.md ./
 
 # Volumes for user data

@@ -36,7 +36,7 @@ class MatrixTransport(TransportClient):
         access_token: str = "",
         password: str = "",
         bot_name: str = "bot",
-        device_name: str = "NaturalChat4",
+        device_name: str = "NaturalChat",
         msg_wait_initial: float = 2.5,
         msg_wait_after_typing_stop: float = 5.0,
         typing_hard_timeout: float = 10.0,

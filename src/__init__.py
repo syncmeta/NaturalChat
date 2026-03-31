@@ -1,1 +1,1 @@
-# naturalchat4 - Multi-bot chatbot system
+# naturalchat - Multi-bot chatbot system

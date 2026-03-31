@@ -105,7 +105,7 @@
 - `deploy/memobase-compose.yml`
   Memobase 专用 Docker Compose。
 
-- `deploy/naturalchat4.service`
+- `deploy/naturalchat.service`
   systemd 服务文件模板。
 
 ## local

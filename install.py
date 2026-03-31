@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-install.py - NaturalChat4 交互式安装向导
+install.py - NaturalChat 交互式安装向导
 
 无额外依赖，仅使用 Python 标准库。
 引导用户选择平台、配置凭据、安装依赖。
@@ -235,7 +235,7 @@ def collect_xmpp():
 def main():
     print("""
 ╔══════════════════════════════════════════╗
-║     NaturalChat4 安装向导               ║
+║     NaturalChat 安装向导               ║
 ╚══════════════════════════════════════════╝
 """)
 
@@ -297,8 +297,8 @@ def main():
     print("  LLM 配置")
     print("=" * 50)
     api_key = ask("API Key")
-    base_url = ask("API Base URL", "https://api.openai.com/v1")
-    model = ask("模型名称", "gpt-4o-mini")
+    base_url = ask("API Base URL", "https://openrouter.ai/api/v1")
+    model = ask("模型名称", "openrouter/auto")
 
     # ── 4. 访问模式 ──
     access_mode = ask_choice("访问控制模式：", [
@@ -411,7 +411,7 @@ def main():
     env_path = os.path.join(BASE_DIR, ".env")
     if not os.path.isfile(env_path):
         with open(env_path, "w") as f:
-            f.write("# NaturalChat4 环境变量\n")
+            f.write("# NaturalChat 环境变量\n")
             if use_memobase:
                 f.write("MEMOBASE_DB_PASSWORD=memobase\n")
         print(f"  创建 {env_path}")

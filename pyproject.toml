@@ -1,5 +1,5 @@
 [project]
-name = "naturalchat4"
+name = "naturalchat"
 version = "0.1.0"
 description = "多平台聊天机器人框架 - 支持 Telegram、Matrix、飞书、XMPP"
 readme = "README.md"

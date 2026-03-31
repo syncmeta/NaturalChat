@@ -537,7 +537,7 @@ class BotBrain:
         default_api_key = llm_config.get("api_key", "")
         default_base_url = llm_config.get("base_url", "https://api.openai.com/v1")
 
-        models = self.config.get("models", [])
+        models = self.config.get("models") or []
         for m in models:
             api_key = m.get("api_key") or default_api_key
             base_url = m.get("base_url") or default_base_url
@@ -1175,9 +1175,60 @@ class BotBrain:
         return text[:char_limit]
 
     async def _open_web_page(self, url: str, char_limit: int = 2500) -> dict:
-        """Fetch and simplify a web page for deeper reading."""
+        """Fetch and simplify a web page. Uses Firecrawl if configured, else raw HTTP."""
         if not url or not url.startswith(("http://", "https://")):
             return {"url": url, "content": "", "error": "Invalid URL"}
+
+        # Try Firecrawl first (better JS rendering and content extraction)
+        firecrawl_url = self.config.get("firecrawl", {}).get("url", "") or os.environ.get("FIRECRAWL_URL", "")
+        firecrawl_key = self.config.get("firecrawl", {}).get("api_key", "") or os.environ.get("FIRECRAWL_API_KEY", "")
+        if firecrawl_url:
+            result = await self._open_web_page_firecrawl(url, char_limit, firecrawl_url, firecrawl_key)
+            if not result.get("error"):
+                return result
+            logger.debug(f"[{self.bot_name}] Firecrawl failed for {url}: {result.get('error')}, falling back to raw HTTP")
+
+        return await self._open_web_page_raw(url, char_limit)
+
+    async def _open_web_page_firecrawl(self, url: str, char_limit: int,
+                                        firecrawl_url: str, api_key: str) -> dict:
+        """Fetch a page via Firecrawl API (handles JS-rendered content)."""
+        try:
+            scrape_url = firecrawl_url.rstrip("/") + "/v1/scrape"
+            headers = {"Content-Type": "application/json"}
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+
+            payload = {
+                "url": url,
+                "formats": ["markdown"],
+            }
+
+            timeout = aiohttp.ClientTimeout(total=30)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(scrape_url, json=payload, headers=headers) as resp:
+                    if resp.status >= 400:
+                        body = await resp.text(errors="ignore")
+                        return {"url": url, "content": "", "error": f"Firecrawl HTTP {resp.status}: {body[:200]}"}
+                    data = await resp.json()
+
+            result_data = data.get("data", {})
+            markdown = result_data.get("markdown", "")
+            metadata = result_data.get("metadata", {})
+            title = metadata.get("title", "")[:200]
+            content = markdown[:char_limit] if markdown else ""
+
+            return {
+                "url": metadata.get("sourceURL", url),
+                "title": title,
+                "content_type": "text/markdown",
+                "content": content,
+            }
+        except Exception as e:
+            return {"url": url, "content": "", "error": f"Firecrawl: {e}"}
+
+    async def _open_web_page_raw(self, url: str, char_limit: int) -> dict:
+        """Fetch a page via raw HTTP + HTML stripping (fallback)."""
         try:
             timeout = aiohttp.ClientTimeout(total=12)
             async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -1607,6 +1658,9 @@ class BotBrain:
     async def _surfing_loop(self):
         """Autonomous web surfing loop with activity-aware scheduling."""
         if not self.surfing_config.get("enabled", False):
+            # Wait indefinitely so the task doesn't exit early
+            while not self._stopping:
+                await asyncio.sleep(3600)
             return
 
         await asyncio.sleep(30)  # Initial delay

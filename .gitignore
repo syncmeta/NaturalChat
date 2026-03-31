@@ -1,15 +1,15 @@
 venv/
+.venv/
 __pycache__/
 *.pyc
 .DS_Store
 workspace/
 .claude/
 memobase/
-bots/bot1/
-bots/*/config.yaml
-bots/*/secrets.yaml
-bots/*/bot_data/
-bots/*/memories/
+deploy/
+deploy.sh
+.install_state/
+bots/
 !bots/example/
 !bots/example/config.yaml
 !bots/example/secrets.yaml
@@ -17,5 +17,6 @@ bots/*/memories/
 !bots/example/prompts/**
 *.tar.gz
 .env
+web_panel.yaml
 local/
 /config.yaml

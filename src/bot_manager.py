@@ -97,7 +97,7 @@ def _build_transports(config: dict, bot_name: str) -> dict:
                 access_token=matrix_config.get("access_token", ""),
                 password=matrix_config.get("password", ""),
                 bot_name=bot_name,
-                device_name=matrix_config.get("device_name", "NaturalChat4"),
+                device_name=matrix_config.get("device_name", "NaturalChat"),
                 msg_wait_initial=config.get("msg_wait_initial", 2.5),
                 msg_wait_after_typing_stop=config.get("msg_wait_after_typing_stop", 5.0),
                 typing_hard_timeout=config.get("typing_hard_timeout", 10.0),
@@ -123,6 +123,11 @@ def _build_transports(config: dict, bot_name: str) -> dict:
             transports["feishu"] = feishu
         except ImportError:
             logger.warning(f"[{bot_name}] Feishu transport not available, skipping")
+
+    # Web: always enabled (for the admin panel)
+    from src.transport.web import WebTransport
+    web = WebTransport(bot_name=bot_name)
+    transports["web"] = web
 
     return transports
 

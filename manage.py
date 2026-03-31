@@ -23,14 +23,17 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BOTS_DIR = os.path.join(BASE_DIR, "bots")
 
 DEFAULT_CONFIG = {
-    "reflection_delay": 30.0,
+    "reflection_delay": 30,
     "msg_wait_initial": 2.5,
     "msg_wait_after_typing_stop": 5.0,
     "typing_hard_timeout": 10.0,
     "llm": {
-        "base_url": "https://api.openai.com/v1",
-        "model": "gpt-4o-mini",
+        "base_url": "https://openrouter.ai/api/v1",
+        "model": "openrouter/auto",
         "max_history_tokens": 4000,
+    },
+    "token_budget": {
+        "default_score": 50,
     },
     "transports": {
         "telegram": {
@@ -315,7 +318,7 @@ def import_bot_cmd(package: str, name: str, jid: str = None, password: str = Non
 
 
 def main():
-    parser = argparse.ArgumentParser(description="NaturalChat4 本地 bot 目录管理工具")
+    parser = argparse.ArgumentParser(description="NaturalChat 本地 bot 目录管理工具")
     subparsers = parser.add_subparsers(dest="command", help="可用命令")
 
     # add

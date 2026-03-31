@@ -6,13 +6,13 @@
 
 目前这个版本还比较粗糙，我还没有完整地测试和调整过，但基本可用。文档、prompt、逻辑等等我还得改，很多AI做不好的地方我还没做。
 
-以下都是AI写的了。
+以下都是AI写的了，也许很多地方不对，我晚点再仔细校对。
 
 ## 它能做什么
 
-### 帮你找到你需要但不知道自己需要的东西
+### 推送你需要的，而不是抢夺你注意力的东西
 
-它会在后台自主上网冲浪——不是漫无目的地搜，而是基于它对你的了解，去找你可能感兴趣但还没注意到的内容。如果你配了 RSS 订阅源，它也会把 RSS 作为信息来源之一纳入考量。它不会什么都往你面前推，只在真正觉得值得的时候才开口。
+它会基于它对你的了解，去找你可能感兴趣但还没注意到的内容。如果你配了 RSS 订阅源，它也会把 RSS 作为信息来源之一纳入考量。它不会什么都往你面前推，只在真正觉得值得的时候才开口。
 
 ### 破除信息茧房
 
@@ -45,13 +45,13 @@
 ### 1. 克隆项目
 
 ```bash
-git clone <repo-url> && cd naturalchat4
+git clone <repo-url> && cd naturalchat
 ```
 
 ### 2. 运行安装向导
 
 ```bash
-python install.py
+bash install.sh
 ```
 
 安装向导会引导你：
@@ -81,7 +81,7 @@ docker compose up
 1. 在 Telegram 中搜索 **@BotFather**
 2. 发送 `/newbot`，按提示设置名称和用户名
 3. 复制返回的 **Bot Token**
-4. 运行 `python install.py`，选择 Telegram，粘贴 Token
+4. 运行 `bash install.sh`，选择 Telegram，粘贴 Token
 5. 检查 `bots/<bot>/secrets.yaml`，确认 `transports.telegram.token` 和 `llm.api_key` 已填好
 6. 运行 `python main.py`
 7. 在 Telegram 里先给 bot 发 `/start`

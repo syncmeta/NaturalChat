@@ -41,13 +41,13 @@ The project is tuned for short, conversational replies rather than formal assist
 ### 1. Clone the repo
 
 ```bash
-git clone <repo-url> && cd naturalchat4
+git clone <repo-url> && cd naturalchat
 ```
 
 ### 2. Run the installer
 
 ```bash
-python3 install.py
+bash install.sh
 ```
 
 The installer walks through:
@@ -74,7 +74,7 @@ docker compose up
 
 1. Create a bot with **@BotFather**
 2. Copy the bot token
-3. Run `python3 install.py`
+3. Run `bash install.sh`
 4. Put secrets into `bots/<bot>/secrets.yaml`
 5. Start the project
 6. Send `/start` to the bot
