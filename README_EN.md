@@ -53,6 +53,7 @@ After installation, manage with `nctl.sh`:
 ./nctl.sh stop      # Stop
 ./nctl.sh restart   # Restart
 ./nctl.sh status    # Status
+./nctl.sh info      # Connection details (panel URL, credentials, etc.)
 ```
 
 Uninstall:

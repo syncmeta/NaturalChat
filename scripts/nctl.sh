@@ -7,6 +7,7 @@
 #   bash nctl.sh start        Start all services
 #   bash nctl.sh stop         Stop all services
 #   bash nctl.sh restart      Restart all services
+#   bash nctl.sh info         Show connection details
 #   bash nctl.sh logs [svc]   View logs (bot, conduit, memobase-api, etc.)
 #   bash nctl.sh config       Edit configuration
 #   bash nctl.sh matrix       Matrix account management
@@ -75,13 +76,14 @@ i18n() {
         zh:menu_matrix) echo "Matrix — 管理 Matrix 账号" ;;
         en:menu_bots) echo "Bots — Manage bot instances" ;;
         zh:menu_bots) echo "机器人 — 管理机器人实例" ;;
+        en:menu_info) echo "Info — Show connection details" ;;
+        zh:menu_info) echo "信息 — 显示连接详情" ;;
         en:menu_exit) echo "Exit" ;; zh:menu_exit) echo "退出" ;;
 
         # ── Status ──
         en:status_title) echo "System Status" ;; zh:status_title) echo "系统状态" ;;
         en:run_mode) echo "Run mode" ;; zh:run_mode) echo "运行模式" ;;
-        en:run_mode_docker) echo "Docker container" ;; zh:run_mode_docker) echo "Docker 容器" ;;
-        en:run_mode_host) echo "Host (venv + nohup)" ;; zh:run_mode_host) echo "宿主机（venv + nohup）" ;;
+        en:run_mode_running) echo "Running" ;; zh:run_mode_running) echo "运行中" ;;
         en:docker_services) echo "Docker Services" ;; zh:docker_services) echo "Docker 服务" ;;
         en:no_containers) echo "No running containers" ;; zh:no_containers) echo "没有运行中的容器" ;;
         en:web_panel) echo "Web Panel" ;; zh:web_panel) echo "网页面板" ;;
@@ -316,17 +318,9 @@ RSSHUB_PORT="$(load_env RSSHUB_PORT 1200)"
 
 # Detect run mode
 detect_run_mode() {
-    # Check if bot container is running in compose
-    if dc ps --status running --format '{{.Name}}' 2>/dev/null | grep -q "bot"; then
-        echo "docker"
-    elif [[ -f "$BASE_DIR/.naturalchat.pid" ]]; then
-        local pid
-        pid="$(cat "$BASE_DIR/.naturalchat.pid" 2>/dev/null)" || true
-        if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-            echo "host"
-        else
-            echo "stopped"
-        fi
+    # Check if any containers are running in compose
+    if dc ps --status running --format '{{.Name}}' 2>/dev/null | grep -q .; then
+        echo "running"
     else
         echo "stopped"
     fi
@@ -396,14 +390,6 @@ if [[ -z "$EDITOR" ]]; then
     done
 fi
 
-# Python path
-PY=""
-if [[ -f "$BASE_DIR/.venv/bin/python" ]]; then
-    PY="$BASE_DIR/.venv/bin/python"
-elif command -v python3 &>/dev/null; then
-    PY="python3"
-fi
-
 # ── Docker compose wrapper ───────────────────────────────────────────────────
 
 dc() {
@@ -431,9 +417,8 @@ cmd_status() {
     local mode
     mode="$(detect_run_mode)"
     case "$mode" in
-        docker) printf "  ${BOLD}$(i18n run_mode):${NC}  ${GREEN}$(i18n run_mode_docker)${NC}\n" ;;
-        host)   printf "  ${BOLD}$(i18n run_mode):${NC}  ${GREEN}$(i18n run_mode_host)${NC} (PID: $(cat "$BASE_DIR/.naturalchat.pid" 2>/dev/null))\n" ;;
-        *)      printf "  ${BOLD}$(i18n run_mode):${NC}  ${RED}Stopped${NC}\n" ;;
+        running) printf "  ${BOLD}$(i18n run_mode):${NC}  ${GREEN}$(i18n run_mode_running)${NC}\n" ;;
+        *)       printf "  ${BOLD}$(i18n run_mode):${NC}  ${RED}Stopped${NC}\n" ;;
     esac
     echo ""
 
@@ -548,7 +533,7 @@ cmd_start() {
     local mode
     mode="$(detect_run_mode)"
 
-    if [[ "$mode" == "docker" ]] || [[ "$mode" == "host" ]]; then
+    if [[ "$mode" == "running" ]]; then
         warn "Services are already running"
         return
     fi
@@ -556,27 +541,7 @@ cmd_start() {
     # Resolve port conflicts before starting
     _resolve_port_conflicts
 
-    # Start Docker services
-    if [[ -f "$COMPOSE_FILE" ]] && command -v docker &>/dev/null && docker info &>/dev/null 2>&1; then
-        local profiles
-        profiles="$(get_configured_profiles)"
-        if [[ -n "$profiles" ]]; then
-            dc_all up -d --build 2>&1 | sed 's/^/    /'
-        fi
-    fi
-
-    # If bot is NOT in docker profiles (host mode), start via nohup
-    if ! echo "$(get_configured_profiles)" | grep -q "bot" 2>/dev/null; then
-        if [[ -n "$PY" ]]; then
-            local log_dir="$BASE_DIR/logs"
-            mkdir -p "$log_dir"
-            local log_file="$log_dir/naturalchat.log"
-            nohup "$PY" "$BASE_DIR/main.py" >> "$log_file" 2>&1 &
-            local pid=$!
-            echo "$pid" > "$BASE_DIR/.naturalchat.pid"
-            ok "Bot started (PID: $pid)"
-        fi
-    fi
+    dc_all up -d --build 2>&1 | sed 's/^/    /'
 
     echo ""
     ok "$(i18n started)"
@@ -588,21 +553,7 @@ cmd_stop() {
     echo ""
     info "$(i18n stopping)"
 
-    # Stop host-mode bot
-    if [[ -f "$BASE_DIR/.naturalchat.pid" ]]; then
-        local pid
-        pid="$(cat "$BASE_DIR/.naturalchat.pid" 2>/dev/null)" || true
-        if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-            kill "$pid" 2>/dev/null || true
-            ok "Bot stopped (PID: $pid)"
-        fi
-        rm -f "$BASE_DIR/.naturalchat.pid"
-    fi
-
-    # Stop Docker services
-    if [[ -f "$COMPOSE_FILE" ]] && command -v docker &>/dev/null && docker info &>/dev/null 2>&1; then
-        dc_all stop 2>&1 | sed 's/^/    /'
-    fi
+    dc_all stop 2>&1 | sed 's/^/    /'
 
     echo ""
     ok "$(i18n stopped)"
@@ -614,45 +565,123 @@ cmd_restart() {
     echo ""
     info "$(i18n restarting)"
 
-    # Stop Docker services first so port checks don't see our own containers
-    if [[ -f "$COMPOSE_FILE" ]] && command -v docker &>/dev/null && docker info &>/dev/null 2>&1; then
-        dc_all stop 2>&1 | sed 's/^/    /'
-    fi
+    # Stop first so port checks don't see our own containers
+    dc_all stop 2>&1 | sed 's/^/    /'
 
-    # Now resolve port conflicts while ports are free
+    # Resolve port conflicts while ports are free
     _resolve_port_conflicts
 
-    # Start Docker services
-    if [[ -f "$COMPOSE_FILE" ]] && command -v docker &>/dev/null && docker info &>/dev/null 2>&1; then
-        local profiles
-        profiles="$(get_configured_profiles)"
-        if [[ -n "$profiles" ]]; then
-            dc_all up -d --build --force-recreate 2>&1 | sed 's/^/    /'
-        fi
-    fi
-
-    # Restart host-mode bot
-    if ! echo "$(get_configured_profiles)" | grep -q "bot" 2>/dev/null; then
-        if [[ -f "$BASE_DIR/.naturalchat.pid" ]]; then
-            local pid
-            pid="$(cat "$BASE_DIR/.naturalchat.pid" 2>/dev/null)" || true
-            if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-                kill "$pid" 2>/dev/null || true
-                sleep 1
-            fi
-            rm -f "$BASE_DIR/.naturalchat.pid"
-        fi
-        if [[ -n "$PY" ]]; then
-            local log_dir="$BASE_DIR/logs"
-            mkdir -p "$log_dir"
-            nohup "$PY" "$BASE_DIR/main.py" >> "$log_dir/naturalchat.log" 2>&1 &
-            echo "$!" > "$BASE_DIR/.naturalchat.pid"
-            ok "Bot restarted (PID: $!)"
-        fi
-    fi
+    # Start
+    dc_all up -d --build --force-recreate 2>&1 | sed 's/^/    /'
 
     echo ""
     ok "$(i18n restarted)"
+}
+
+# ── Info ─────────────────────────────────────────────────────────────────────
+
+cmd_info() {
+    echo ""
+    printf "  ${BOLD}── Connection Details ──${NC}\n"
+    echo ""
+
+    # Web panel
+    if [[ -f "$BASE_DIR/web_panel.yaml" ]]; then
+        local panel_port panel_user panel_pass
+        panel_port="$(sed -n 's/^port: *\(.*\)/\1/p' "$BASE_DIR/web_panel.yaml" 2>/dev/null | head -1)" || true
+        panel_user="$(sed -n 's/^username: *"\{0,1\}\([^"]*\)"\{0,1\}/\1/p' "$BASE_DIR/web_panel.yaml" 2>/dev/null | head -1)" || true
+        panel_pass="$(sed -n 's/^password: *"\{0,1\}\([^"]*\)"\{0,1\}/\1/p' "$BASE_DIR/web_panel.yaml" 2>/dev/null | head -1)" || true
+        if [[ -n "$panel_port" ]]; then
+            printf "  ${BOLD}$(i18n web_panel)${NC}\n"
+            echo "    URL:      http://localhost:${panel_port}"
+            echo "    Username: $panel_user"
+            echo "    Password: $panel_pass"
+            echo ""
+        fi
+    fi
+
+    # Matrix test account (from .install_state)
+    local state_dir="$BASE_DIR/.install_state"
+    local test_user="" test_pass="" test_uid=""
+    if [[ -f "$state_dir/var_CONDUIT_TEST_USER" ]]; then
+        test_user="$(cat "$state_dir/var_CONDUIT_TEST_USER" 2>/dev/null)" || true
+    fi
+    if [[ -f "$state_dir/var_CONDUIT_TEST_PASSWORD" ]]; then
+        test_pass="$(cat "$state_dir/var_CONDUIT_TEST_PASSWORD" 2>/dev/null)" || true
+    fi
+    if [[ -f "$state_dir/var_CONDUIT_TEST_USER_ID" ]]; then
+        test_uid="$(cat "$state_dir/var_CONDUIT_TEST_USER_ID" 2>/dev/null)" || true
+    fi
+
+    if [[ -n "$test_user" ]] && [[ -n "$test_pass" ]]; then
+        # Detect actual Conduit port from running container
+        local actual_conduit_port="$CONDUIT_PORT"
+        local running_ports
+        running_ports="$(dc ps --status running --format '{{.Name}} {{.Ports}}' 2>/dev/null | grep conduit)" || true
+        if [[ -n "$running_ports" ]]; then
+            local extracted
+            extracted="$(echo "$running_ports" | grep -oE "0\.0\.0\.0:[0-9]+->6167/tcp" | head -1 | grep -oE ':[0-9]+' | head -1 | tr -d ':')"
+            [[ -n "$extracted" ]] && actual_conduit_port="$extracted"
+        fi
+
+        printf "  ${BOLD}Matrix (Conduit)${NC}\n"
+        echo "    Homeserver: http://127.0.0.1:${actual_conduit_port}"
+
+        # Bot user from config
+        local bot_dir
+        bot_dir="$(ls -d "$BASE_DIR/bots"/*/ 2>/dev/null | head -1)"
+        if [[ -n "$bot_dir" ]] && [[ -f "$bot_dir/config.yaml" ]]; then
+            local bot_uid
+            bot_uid="$(grep 'user_id:' "$bot_dir/config.yaml" 2>/dev/null | head -1 | sed 's/.*: *"\{0,1\}\([^"]*\)"\{0,1\}/\1/')" || true
+            [[ -n "$bot_uid" ]] && echo "    Bot:        $bot_uid"
+        fi
+        echo ""
+
+        printf "  ${GREEN}Test account (Element):${NC}\n"
+        echo "    User:     ${test_uid:-@${test_user}:${CONDUIT_SERVER_NAME}}"
+        echo "    Password: $test_pass"
+        echo ""
+    fi
+
+    # Service endpoints
+    printf "  ${BOLD}$(i18n endpoints):${NC}\n"
+    local has_endpoint=false
+    local running_info
+    running_info="$(dc ps --status running 2>/dev/null)" || true
+
+    _get_host_port_info() {
+        local svc_name="$1" cport="$2"
+        local line
+        line="$(echo "$running_info" | grep "$svc_name" || true)"
+        if [[ -n "$line" ]]; then
+            echo "$line" | sed -n "s/.*0\.0\.0\.0:\([0-9]*\)->${cport}\/tcp.*/\1/p" | head -1
+        fi
+    }
+
+    if echo "$running_info" | grep -q "conduit"; then
+        local p; p="$(_get_host_port_info conduit 6167)"
+        echo "    Matrix (Conduit): http://127.0.0.1:${p:-$CONDUIT_PORT}"
+        has_endpoint=true
+    fi
+    if echo "$running_info" | grep -q "memobase-api"; then
+        local p; p="$(_get_host_port_info memobase-api 8000)"
+        echo "    Memobase API:     http://127.0.0.1:${p:-$MEMOBASE_PORT}"
+        has_endpoint=true
+    fi
+    if echo "$running_info" | grep -q "crawl4ai"; then
+        local p; p="$(_get_host_port_info crawl4ai 11235)"
+        echo "    Crawl4AI:         http://127.0.0.1:${p:-$CRAWL4AI_PORT}"
+        has_endpoint=true
+    fi
+    if echo "$running_info" | grep -q "rsshub"; then
+        local p; p="$(_get_host_port_info rsshub 1200)"
+        echo "    RSSHub:           http://127.0.0.1:${p:-$RSSHUB_PORT}"
+        has_endpoint=true
+    fi
+    if [[ "$has_endpoint" == "false" ]]; then
+        printf "    ${DIM}(services not running)${NC}\n"
+    fi
+    echo ""
 }
 
 # ── Logs ─────────────────────────────────────────────────────────────────────
@@ -671,10 +700,6 @@ cmd_logs() {
             [[ -n "$svc" ]] && services+=("$svc")
         done <<< "$running"
 
-        # Also offer host log if exists
-        if [[ -f "$BASE_DIR/logs/naturalchat.log" ]] && ! printf '%s\n' "${services[@]}" | grep -qx "bot"; then
-            services+=("host-log (naturalchat.log)")
-        fi
         services+=("$(i18n back)")
 
         local choice
@@ -695,9 +720,7 @@ cmd_logs() {
     info "$(i18n logs_hint)"
     echo ""
 
-    if [[ "$service" == "host-log"* ]]; then
-        tail -f "$BASE_DIR/logs/naturalchat.log" 2>/dev/null || warn "No log file found"
-    elif [[ "$service" == "all" ]]; then
+    if [[ "$service" == "all" ]]; then
         dc logs -f --tail 100 2>/dev/null || true
     else
         dc logs -f --tail 100 "$service" 2>/dev/null || true
@@ -900,7 +923,7 @@ _matrix_list() {
                 -H "Authorization: Bearer ${access_token}" 2>&1)" || true
 
             if echo "$users_result" | grep -q "users"; then
-                echo "$users_result" | "$PY" -c "
+                echo "$users_result" | "python3" -c "
 import sys, json
 data = json.load(sys.stdin)
 users = data.get('users', [])
@@ -1030,7 +1053,7 @@ _matrix_info() {
     local versions
     versions="$(curl -sf "${MATRIX_API}/_matrix/client/versions" 2>&1)" || true
     if [[ -n "$versions" ]]; then
-        echo "$versions" | "$PY" -c "
+        echo "$versions" | "python3" -c "
 import sys, json
 data = json.load(sys.stdin)
 for v in data.get('versions', []):
@@ -1077,21 +1100,13 @@ cmd_bots() {
 }
 
 _run_manage() {
-    # Run manage.py either via docker exec or venv
-    local mode
-    mode="$(detect_run_mode)"
-    if [[ "$mode" == "docker" ]]; then
-        local container
-        container="$(dc ps --status running --format '{{.Name}}' 2>/dev/null | grep bot | head -1)" || true
-        if [[ -n "$container" ]]; then
-            docker exec -it "$container" python manage.py "$@"
-            return
-        fi
-    fi
-    if [[ -n "$PY" ]]; then
-        (cd "$BASE_DIR" && "$PY" manage.py "$@")
+    # Run manage.py via docker exec
+    local container
+    container="$(dc ps --status running --format '{{.Name}}' 2>/dev/null | grep bot | head -1)" || true
+    if [[ -n "$container" ]]; then
+        docker exec -it "$container" python manage.py "$@"
     else
-        err "Python not found"
+        err "Bot container is not running. Start services first."
     fi
 }
 
@@ -1145,6 +1160,7 @@ if [[ $# -gt 0 ]]; then
         start)   cmd_start ;;
         stop)    cmd_stop ;;
         restart) cmd_restart ;;
+        info)    cmd_info ;;
         logs)    shift; cmd_logs "$@" ;;
         config)  cmd_config ;;
         matrix)  cmd_matrix ;;
@@ -1160,6 +1176,7 @@ if [[ $# -gt 0 ]]; then
             echo "    start      Start all services"
             echo "    stop       Stop all services"
             echo "    restart    Restart all services"
+            echo "    info       Show connection details (URLs, credentials)"
             echo "    logs [svc] View logs (optional: bot, conduit, memobase-api...)"
             echo "    config     Edit configuration"
             echo "    matrix     Matrix account management"
@@ -1190,9 +1207,8 @@ while true; do
     local mode
     mode="$(detect_run_mode)"
     case "$mode" in
-        docker) printf "  ${GREEN}●${NC} Running (Docker)\n" ;;
-        host)   printf "  ${GREEN}●${NC} Running (Host)\n" ;;
-        *)      printf "  ${RED}●${NC} Stopped\n" ;;
+        running) printf "  ${GREEN}●${NC} Running\n" ;;
+        *)       printf "  ${RED}●${NC} Stopped\n" ;;
     esac
 
     local has_matrix=false
@@ -1205,6 +1221,7 @@ while true; do
     menu_items+=("$(i18n menu_start)")
     menu_items+=("$(i18n menu_stop)")
     menu_items+=("$(i18n menu_restart)")
+    menu_items+=("$(i18n menu_info)")
     menu_items+=("$(i18n menu_logs)")
     menu_items+=("$(i18n menu_config)")
     [[ "$has_matrix" == "true" ]] && menu_items+=("$(i18n menu_matrix)")
@@ -1217,7 +1234,7 @@ while true; do
 
     # Map choice to action, accounting for optional Matrix menu
     local idx=$((choice - 1))
-    local actions=("status" "start" "stop" "restart" "logs" "config")
+    local actions=("status" "start" "stop" "restart" "info" "logs" "config")
     [[ "$has_matrix" == "true" ]] && actions+=("matrix")
     actions+=("bots" "exit")
 
@@ -1228,6 +1245,7 @@ while true; do
         start)   cmd_start; pause ;;
         stop)    cmd_stop; pause ;;
         restart) cmd_restart; pause ;;
+        info)    cmd_info; pause ;;
         logs)    cmd_logs ;;
         config)  cmd_config ;;
         matrix)  cmd_matrix ;;

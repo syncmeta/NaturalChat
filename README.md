@@ -59,6 +59,7 @@ bash install.sh
 ./nctl.sh stop      # 停止
 ./nctl.sh restart   # 重启
 ./nctl.sh status    # 查看状态
+./nctl.sh info      # 查看连接信息（面板地址、账号密码等）
 ```
 
 卸载：
