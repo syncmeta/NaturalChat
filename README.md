@@ -1,221 +1,159 @@
-# NaturalChat
+# 自然对话 NaturalChat 
 
-[中文文档 / Chinese README](README_ZH.md)
+[English](README_EN.md)
 
-It can help you surf the internet and break out of your information bubble.
-It can be shaped by you, or even shaped together with your friends.
-And the way it talks really does feel natural, like chatting on WhatsApp with close friends.
+两大目标：
 
-The current version is still pretty rough. I haven't fully tested or tuned it yet, but it is basically usable. I still need to keep working on the docs, prompts, logic, and a lot of the things current AI systems still don't do well.
+- 和人自然地交流、主动对话 和微信聊天一样 让它心里有你
+- 破除信息茧房。自己上网冲浪 从使用者的利益出发 寻找他真正需要的东西 
 
-Everything below this point was written by AI. Some of it may be inaccurate. I'll check it later.
+它有主动性。不是你问一句它答一句。
 
-## What It Does
+它/它们可以由一人养育，也可以和好友一起养育。
 
-### Proactive discovery
 
-NaturalChat can browse the web in the background and look for things that may genuinely matter to a contact, instead of waiting for an explicit search prompt every time. If RSS feeds are configured, they become another input source during planning.
 
-### Escaping the filter bubble
+主要不是想做助手或工具。助手类应用大把人做，我没必要重复造轮子。
 
-The system is meant to search beyond a person's usual information habits. It can combine RSS, search, and lightweight page reading to surface things that are relevant but easy to miss.
+也不是想做标准的 AI 陪伴，解决的需求不在于缺爱了想找个 AI 陪或者无聊了想找个人聊天。
 
-### Collective shaping
 
-This bot is not modeled as a private servant for a single operator. Different people who talk to it can gradually shape its long-term style, memory, and behavior.
 
-### Weak-link bridging
+我期望它能帮人生活得更好，方式可以是给出靠谱的建议、指出自己意识不到的问题、提供有价值的信息、提供更好的生活方式与计划……虽然这非常难实现，人都很难做到，但要想有一个这样的朋友也许比做一个这样的 AI 更难。不论如何，我先试试，弄来耍一耍。
 
-Because the bot may know multiple people, it can help pass useful information across contacts instead of keeping every conversation isolated.
+目前这个版本还比较粗糙，我还没有完整地测试和调整过，但基本可用。文档、prompt、逻辑等等我还得改，很多AI做不好的地方我还没做。
 
-### Context-aware conversation
+以下由 Claude 撰写
 
-It knows which platform it is on, who it is talking to, and whether the user may still be typing. On platforms with typing events, it waits for typing to stop; on platforms without them, it can use a smaller model to judge whether more input is likely coming.
+## 它能做什么
 
-### Natural tone
+**主动发现** — 它会基于对你的了解，在后台上网找你可能感兴趣但还没注意到的东西。配了 RSS 订阅源的话也会纳入考量。不会什么都推，只在觉得值得的时候才开口。
 
-The project is tuned for short, conversational replies rather than formal assistant language. It supports tools, web search, code execution, and long-term memory without forcing all of that into a stiff assistant tone.
+**破除信息茧房** — 有意识地在你的兴趣边界之外找高质量内容。RSS、网页搜索、深度阅读，手段不限，目的是帮你跳出自己的回音室。
 
-## Quick Start
+**共同养育** — 不属于任何一个人。每个跟它聊过的人都在塑造它。它记住每个人的兴趣和说话方式，在互动中逐渐长成独特的存在。
 
-### 1. Clone the repo
+**弱连接** — 它同时认识你的很多朋友。A 问了一个 B 可能知道的问题，它可以主动去问 B 把答案带回来。不是代替人的交流，是在人和人之间搭桥。
+
+**自然** — 不是客服，不说"好的，我来帮您处理"。像朋友一样说话，简短直接，有自己的想法。需要搜就自己搜，需要算就自己写代码算，不假装什么都知道。
+
+**输入感知** — 支持输入状态的平台（Matrix、XMPP）上它等你打完再回，不会在你打字到一半就急着回复。不支持的平台用小模型判断你说完了没有。
+
+**群聊** — 拉进群里就是群里的一员。根据对话内容判断要不要说话，不是每句都要回。
+
+## 快速开始
+
+需要 Docker。
 
 ```bash
-git clone <repo-url> && cd naturalchat
-```
-
-### 2. Run the installer
-
-```bash
+git clone https://github.com/syncmeta/NaturalChat.git && cd NaturalChat
 bash install.sh
 ```
 
-The installer walks through:
-- transport setup (Telegram / Matrix / Feishu / XMPP)
-- LLM configuration
-- access mode
-- dependency installation
+安装向导会引导你选择平台、配置 LLM API、设置访问模式，自动部署所有服务。
 
-### 3. Start the bots
+装好后用 `nctl.sh` 管理：
 
 ```bash
-python3 main.py
+./nctl.sh start     # 启动
+./nctl.sh stop      # 停止
+./nctl.sh restart   # 重启
+./nctl.sh status    # 查看状态
 ```
 
-Or with Docker:
+卸载：
 
 ```bash
-docker compose up
+bash uninstall.sh
 ```
 
-## Supported Platforms
+## 平台
 
-### Telegram
+| 平台 | 说明 |
+|------|------|
+| **Matrix** | 安装向导自动用 Docker 部署 Conduit 服务器，开箱即用。也可以连接已有服务器。 |
+| **Telegram** | 通过 @BotFather 创建 bot，把 token 填进安装向导。第一个发 `/start` 的人自动成为 creator。 |
+| **飞书** | 在飞书开放平台创建企业自建应用，配置事件订阅回调地址。 |
+| **XMPP** | 需要一个 XMPP 账号（Prosody、ejabberd 或公共服务器）。 |
+| **网页面板** | 自动生成，安装完成后会显示地址和登录凭据。 |
 
-1. Create a bot with **@BotFather**
-2. Copy the bot token
-3. Run `bash install.sh`
-4. Put secrets into `bots/<bot>/secrets.yaml`
-5. Start the project
-6. Send `/start` to the bot
+## 访问控制
 
-The first account to send `/start` becomes the creator.
+| 模式 | 命令 | 行为 |
+|------|------|------|
+| 开放 | `/access open` | 任何人都能聊 |
+| 审批 | `/access approval` | 新联系人需 admin 审批 |
+| 私有 | `/access private` | 仅 creator 和 admin |
 
-### Matrix
+只有 creator 可以切换模式。管理员管理通过自然语言，例如"把 xxx 设为管理员"。
 
-You can either:
-- deploy Conduit locally with Docker
-- connect to an existing homeserver
+## 命令
 
-### Feishu
+聊天中：
 
-Create a self-built app in the Feishu developer console, then configure the event callback endpoint and credentials.
+| 命令 | 说明 |
+|------|------|
+| `/access [mode]` | 查看或切换访问模式 |
+| `/pack [grant_id]` | 导出 bot 包 |
+| `/surf` | 手动触发冲浪 |
+| `/reset` | 重置对话历史 |
+| `/approve <id>` | 审批请求 |
+| `/deny <id>` | 拒绝请求 |
 
-### XMPP
-
-XMPP is still supported as a transport, but the current public packaging and distribution flow is centered on import/export packages rather than the older co-deployed Prosody clone flow.
-
-## Access Control
-
-The bot supports three access modes:
-
-| Mode | Command | Behavior |
-|------|---------|----------|
-| Open | `/access open` | anyone can chat |
-| Approval | `/access approval` | new contacts require approval |
-| Private | `/access private` | only creator/admins can chat |
-
-Only the creator can change the access mode.
-
-## Repository Layout
-
-```text
-bots/<name>/
-  config.yaml
-  secrets.yaml
-  prompts/
-  skills/
-  bot_data/
-```
-
-Important top-level directories:
-- `common_skills/`: shared built-in skills
-- `prompts/default/`: default prompt bundle
-- `docs/`: additional project docs
-- `local/`: local private files, not meant for git
-
-## Commands
-
-Available in chat:
-
-| Command | Description |
-|---------|-------------|
-| `/access [open|approval|private]` | show or change access mode |
-| `/pack [grant_id]` | request or download an exported bot package |
-| `/surf` | trigger a surfing round manually |
-| `/reset` | reset conversation state for the current contact |
-| `/approve <id>` | approve a pending request |
-| `/deny <id>` | deny a pending request |
-
-Local CLI management:
+本地管理：
 
 ```bash
-python3 manage.py add <name>
-python3 manage.py list
-python3 manage.py export <name>
-python3 manage.py import <pkg> <name>
-python3 manage.py remove <name>
+python manage.py add <name>
+python manage.py list
+python manage.py export <name>
+python manage.py import <pkg> <name>
+python manage.py remove <name>
 ```
 
-`manage.py` manages bot directories in the local workspace. It does not manage your remote messaging accounts for you.
+## 技能
 
-## Import / Export
+在 `common_skills/` 或 `bots/<name>/skills/` 下创建：
 
-Export a bot:
-
-```bash
-python3 manage.py export mybot
 ```
-
-Import it elsewhere:
-
-```bash
-python3 manage.py import mybot_export_*.tar.gz newbot --api-key sk-xxx --telegram-token xxx
-```
-
-On Telegram, the bot can also send package exports through `/pack`, with approval and one-time grant support for non-admin users.
-
-## Skill Development
-
-Create a skill under `common_skills/` or `bots/<name>/skills/`:
-
-```text
 my_skill/
-  SKILL.md
+  SKILL.md           # 技能描述
   scripts/
-    my_skill.py
+    my_skill.py      # async def execute(**kwargs) -> str
 ```
 
-Skills hot-reload automatically. The watcher now covers `SKILL.md`, `scripts/*.py`, and related files under the skill directory.
+文件变更自动热加载，不用重启。参考 `common_skills/web_search/` 了解完整示例。
 
-## Sandboxing
+## 目录结构
 
-Code execution skills choose the best available sandbox in this priority order:
+```
+bots/<name>/
+  config.yaml      # 配置
+  secrets.yaml     # 密钥
+  prompts/         # prompt
+  skills/          # 自定义技能
+  bot_data/        # 运行时数据
 
-| Priority | Sandbox | Platform | Isolation |
-|----------|---------|----------|-----------|
-| 1 | Docker | all | strongest |
-| 2 | bubblewrap | Linux | namespace isolation |
-| 3 | sandbox-exec | macOS | profile-based sandbox |
-| 4 | WSL2 | Windows | WSL execution |
-| 5 | none | all | timeout only |
-
-You can force a mode with `NATURALCHAT_SANDBOX=docker`.
-
-## Docker
-
-```bash
-docker compose up -d
-docker compose --profile matrix up -d
-docker compose --profile memobase up -d
-docker compose --profile matrix --profile memobase up -d
+common_skills/     # 共享内置技能
+prompts/default/   # 默认 prompt 模板
+docker/            # Dockerfile、docker-compose、Conduit 配置
+scripts/           # install.sh、nctl.sh、uninstall.sh
 ```
 
-## Architecture
+## 架构
 
-```text
-Users
-  -> transports (Telegram / Matrix / Feishu / XMPP)
-  -> BotInstance
-  -> BotBrain
-  -> LLMAgent
-  -> MemoryManager
+```
+用户 → Transport (Matrix / Telegram / 飞书 / XMPP / Web)
+         ↓
+       BotInstance (多平台调度)
+         ↓
+       BotBrain (编排：反思、批评、冲浪、RSS、治理)
+         ↓
+       LLMAgent (LLM 调用 + 技能执行)
+         ↓
+       MemoryManager (Memobase 长期记忆 + 本地文件)
 ```
 
-`BotBrain` owns orchestration such as reflection, critic review, surfing, governance, and package updates. `LLMAgent` owns prompt assembly, history management, tool calls, and model interaction.
-```
-
----
+Transport 层统一处理防抖、输入状态感知和命令路由。代码执行技能按优先级自动选择沙箱（Docker → bubblewrap → sandbox-exec → WSL2 → 无沙箱）。
 
 ## License
 

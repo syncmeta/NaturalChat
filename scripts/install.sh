@@ -930,7 +930,7 @@ if step_done 2; then
     BOT_RUN_MODE="$(load_var BOT_RUN_MODE "")"
 else
     # ── Set all defaults ──────────────────────────────────────────────────
-    BOT_NAME="$(random_name)"
+    BOT_NAME="${DEFAULT_BOT_NAME:-$(random_name)}"
     if $HAS_DOCKER; then BOT_RUN_MODE="docker"; else BOT_RUN_MODE="host"; fi
     ACCESS_MODE="open"
     CREATOR_ID=""
@@ -949,11 +949,11 @@ else
 
     if $HAS_DOCKER; then
         NEEDS_CONDUIT=true
-        CONDUIT_PORT="$(random_port)"
+        CONDUIT_PORT="${DEFAULT_CONDUIT_PORT:-$(random_port)}"
         CONDUIT_FED_PORT="$(random_port)"
         CONDUIT_SERVER_NAME="localhost"
         CONDUIT_BOT_USER=""
-        MATRIX_PASSWORD="$(random_chars 16)"
+        MATRIX_PASSWORD="${DEFAULT_MATRIX_PASSWORD:-$(random_chars 16)}"
         MATRIX_HOMESERVER="http://127.0.0.1:$CONDUIT_PORT"
     else
         NEEDS_CONDUIT=false; CONDUIT_PORT=""; CONDUIT_FED_PORT=""
@@ -962,8 +962,14 @@ else
     fi
 
     # Components
-    USE_MEMOBASE=false; MEMOBASE_MODE=""; MEMOBASE_URL=""; MEMOBASE_KEY=""; MEMOBASE_PORT=""
-    USE_CRAWL4AI=false; CRAWL4AI_MODE=""; CRAWL4AI_URL=""; CRAWL4AI_KEY=""; CRAWL4AI_PORT=""
+    USE_MEMOBASE=true; MEMOBASE_MODE=""; MEMOBASE_URL=""; MEMOBASE_KEY=""; MEMOBASE_PORT=""
+    USE_CRAWL4AI=true; CRAWL4AI_MODE=""; CRAWL4AI_URL=""; CRAWL4AI_KEY=""; CRAWL4AI_PORT=""
+    if $HAS_DOCKER; then
+        MEMOBASE_MODE="docker"; MEMOBASE_PORT="$(random_port)"
+        MEMOBASE_URL="http://127.0.0.1:$MEMOBASE_PORT"; MEMOBASE_KEY="$(random_chars 32)"
+        CRAWL4AI_MODE="docker"; CRAWL4AI_PORT="$(random_port)"
+        CRAWL4AI_URL="http://localhost:$CRAWL4AI_PORT"
+    fi
     SERPER_KEY=""
     if $HAS_DOCKER; then
         RSSHUB_MODE="docker"; RSSHUB_PORT="$(random_port)"; RSSHUB_URL="http://localhost:$RSSHUB_PORT"
@@ -1847,19 +1853,17 @@ if (( ${#DOCKER_PROFILES[@]} > 0 )); then
                 fi
                 ok "Matrix bot registered: $MATRIX_USER_ID"
             elif echo "$REG_RESULT" | grep -q "M_USER_IN_USE"; then
-                ok "Matrix bot user already exists: $MATRIX_USER_ID"
-                # Login to get token if we don't have one
-                if [[ -z "${MATRIX_ACCESS_TOKEN:-}" ]]; then
-                    LOGIN_RESULT="$(curl -sf -X POST "${CONDUIT_API}/_matrix/client/r0/login" \
-                        -H "Content-Type: application/json" \
-                        -d "{\"type\": \"m.login.password\", \"user\": \"${CONDUIT_BOT_USER}\", \"password\": \"${MATRIX_PASSWORD}\"}" 2>&1)" || true
-                    BOT_TOKEN="$(json_val "$LOGIN_RESULT" "access_token")" || true
-                    if [[ -n "$BOT_TOKEN" ]]; then
-                        MATRIX_ACCESS_TOKEN="$BOT_TOKEN"
-                        save_var MATRIX_ACCESS_TOKEN "$MATRIX_ACCESS_TOKEN"
-                    fi
+                # Already exists — login to get a fresh token
+                LOGIN_RESULT="$(curl -sf -X POST "${CONDUIT_API}/_matrix/client/r0/login" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"type\": \"m.login.password\", \"user\": \"${CONDUIT_BOT_USER}\", \"password\": \"${MATRIX_PASSWORD}\"}" 2>&1)" || true
+                BOT_TOKEN="$(json_val "$LOGIN_RESULT" "access_token")" || true
+                if [[ -n "$BOT_TOKEN" ]]; then
+                    MATRIX_ACCESS_TOKEN="$BOT_TOKEN"
+                    save_var MATRIX_ACCESS_TOKEN "$MATRIX_ACCESS_TOKEN"
+                    ok "Matrix bot user already exists, logged in: $MATRIX_USER_ID"
                 else
-                    BOT_TOKEN="$MATRIX_ACCESS_TOKEN"
+                    warn "Bot user exists but login failed (password mismatch?)"
                 fi
             else
                 warn "Failed to register Matrix bot user. Register manually:"
@@ -1869,8 +1873,8 @@ if (( ${#DOCKER_PROFILES[@]} > 0 )); then
             fi
 
             # ── 2. Register test/admin account ──
-            CONDUIT_TEST_USER="creator-$(random_chars 6)"
-            CONDUIT_TEST_PASSWORD="$(random_chars 12)"
+            CONDUIT_TEST_USER="${DEFAULT_CONDUIT_TEST_USER:-creator-$(random_chars 6)}"
+            CONDUIT_TEST_PASSWORD="${DEFAULT_CONDUIT_TEST_PASSWORD:-$(random_chars 12)}"
             CONDUIT_TEST_USER_ID="@${CONDUIT_TEST_USER}:${CONDUIT_SERVER_NAME}"
 
             info "Registering test account: $CONDUIT_TEST_USER_ID"
@@ -1886,15 +1890,21 @@ if (( ${#DOCKER_PROFILES[@]} > 0 )); then
                 save_var CONDUIT_TEST_USER_ID "$CONDUIT_TEST_USER_ID"
                 ok "Test account registered: $CONDUIT_TEST_USER_ID"
             elif echo "$TEST_REG" | grep -q "M_USER_IN_USE"; then
-                # Already exists — try to load saved password, or login
-                CONDUIT_TEST_PASSWORD="$(load_var CONDUIT_TEST_PASSWORD "")"
-                if [[ -n "$CONDUIT_TEST_PASSWORD" ]]; then
-                    LOGIN_RESULT="$(curl -sf -X POST "${CONDUIT_API}/_matrix/client/r0/login" \
-                        -H "Content-Type: application/json" \
-                        -d "{\"type\": \"m.login.password\", \"user\": \"${CONDUIT_TEST_USER}\", \"password\": \"${CONDUIT_TEST_PASSWORD}\"}" 2>&1)" || true
-                    TEST_TOKEN="$(json_val "$LOGIN_RESULT" "access_token")" || true
+                # Already exists — login with current password (from defaults or random)
+                _saved_pw="$(load_var CONDUIT_TEST_PASSWORD "")"
+                [[ -n "$_saved_pw" ]] && CONDUIT_TEST_PASSWORD="$_saved_pw"
+                LOGIN_RESULT="$(curl -sf -X POST "${CONDUIT_API}/_matrix/client/r0/login" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"type\": \"m.login.password\", \"user\": \"${CONDUIT_TEST_USER}\", \"password\": \"${CONDUIT_TEST_PASSWORD}\"}" 2>&1)" || true
+                TEST_TOKEN="$(json_val "$LOGIN_RESULT" "access_token")" || true
+                if [[ -n "$TEST_TOKEN" ]]; then
+                    save_var CONDUIT_TEST_USER "$CONDUIT_TEST_USER"
+                    save_var CONDUIT_TEST_PASSWORD "$CONDUIT_TEST_PASSWORD"
+                    save_var CONDUIT_TEST_USER_ID "$CONDUIT_TEST_USER_ID"
+                    ok "Test account already exists, logged in: $CONDUIT_TEST_USER_ID"
+                else
+                    warn "Test account exists but login failed (password mismatch?)"
                 fi
-                ok "Test account already exists: $CONDUIT_TEST_USER_ID"
             else
                 warn "Failed to register test account"
             fi
