@@ -17,6 +17,11 @@ bots/
 .env
 web_panel.yaml
 memobase-config.yaml
+config/config.yaml
+config/secrets.yaml
+config/memobase.yaml
+!config/config.template.yaml
+!config/secrets.template.yaml
 local/
 !install.defaults.example
 /config.yaml

@@ -39,6 +39,14 @@ Below is written by Claude.
 
 Requires Docker.
 
+One-liner install:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/syncmeta/NaturalChat/main/scripts/install.sh)
+```
+
+Or clone manually:
+
 ```bash
 git clone https://github.com/syncmeta/NaturalChat.git && cd NaturalChat
 bash install.sh
@@ -121,6 +129,12 @@ File changes hot-reload automatically. See `common_skills/web_search/` for a com
 ## Repository Layout
 
 ```
+config/                # Global configuration
+  config.yaml          # Non-sensitive config (language, RSSHub, etc.)
+  secrets.yaml         # Sensitive config (API keys, etc.)
+  config.template.yaml # Config template
+  secrets.template.yaml# Secrets template
+
 bots/<name>/
   config.yaml      # Configuration
   secrets.yaml     # Secrets
@@ -129,7 +143,10 @@ bots/<name>/
   bot_data/        # Runtime data
 
 common_skills/     # Shared built-in skills
-prompts/default/   # Default prompt templates
+prompts/
+  default/         # Default prompt templates
+  zh/              # Chinese prompts
+  en/              # English prompts
 docker/            # Dockerfile, docker-compose, Conduit config
 scripts/           # install.sh, nctl.sh, uninstall.sh
 ```

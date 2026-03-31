@@ -1,0 +1,26 @@
+# ╔════════════════════════════════════════════════════════════════╗
+# ║  NaturalChat 全局配置 / Global Configuration                   ║
+# ║  对所有机器人生效 / Applies to all bots                         ║
+# ║  修改后需重启：nctl.sh restart                                  ║
+# ║  Changes require restart: nctl.sh restart                      ║
+# ╚════════════════════════════════════════════════════════════════╝
+
+# ── 界面语言 / UI Language ──────────────────────────────────────
+# 控制安装脚本、管理工具和提示词模板的语言
+# Controls installer, management tools, and prompt template language
+# 可选 / Options: "zh" (中文), "en" (English)
+language: "zh"
+
+# ── RSSHub ──────────────────────────────────────────────────────
+# 为冲浪功能提供 RSS 源聚合
+# Provides RSS feed aggregation for the surfing feature
+# Docker 部署时自动填写 / Auto-filled when deployed via Docker
+# 公共实例 / Public instance: https://rsshub.app
+rsshub_server: ""
+
+# ── 冲浪 / Surfing ─────────────────────────────────────────────
+# 机器人自动上网冲浪的全局开关（各机器人也可单独配置）
+# Global toggle for autonomous web surfing (can be overridden per bot)
+# surfing:
+#   enabled: false
+#   interval: 3600  # 秒 / seconds

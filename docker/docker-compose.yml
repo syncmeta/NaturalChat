@@ -9,7 +9,7 @@ services:
       - ../bots:/app/bots
       - ../workspace:/app/workspace
       - ../logs:/app/logs
-      - ../config.yaml:/app/config.yaml:ro
+      - ../config:/app/config:ro
       - ../web_panel.yaml:/app/web_panel.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock  # Docker sandbox
     restart: unless-stopped
@@ -81,7 +81,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - ../memobase-config.yaml:/app/config.yaml
+      - ../config/memobase.yaml:/app/config.yaml
     restart: unless-stopped
 
   # Crawl4AI - LLM-ready web crawling (optional)

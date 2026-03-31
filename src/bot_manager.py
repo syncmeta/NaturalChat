@@ -227,16 +227,54 @@ class BotManager:
         global_bot_manager = self
 
     def _load_global_config(self) -> dict:
-        """Load project-root config.yaml, inject env vars."""
-        global_config_path = os.path.join(BASE_DIR, "config.yaml")
-        if not os.path.isfile(global_config_path):
-            return {}
-        with open(global_config_path, "r", encoding="utf-8") as f:
-            global_config = yaml.safe_load(f) or {}
+        """Load global config from config/ directory, inject env vars.
+
+        Reads config/config.yaml (non-sensitive) and config/secrets.yaml (sensitive),
+        falling back to the legacy root config.yaml for compatibility.
+        """
+        global_config = {}
+
+        # New location: config/config.yaml + config/secrets.yaml
+        config_dir = os.path.join(BASE_DIR, "config")
+        new_config_path = os.path.join(config_dir, "config.yaml")
+        new_secrets_path = os.path.join(config_dir, "secrets.yaml")
+
+        if os.path.isfile(new_config_path):
+            with open(new_config_path, "r", encoding="utf-8") as f:
+                global_config = yaml.safe_load(f) or {}
+            logger.info("Loaded global config from config/config.yaml")
+
+        if os.path.isfile(new_secrets_path):
+            with open(new_secrets_path, "r", encoding="utf-8") as f:
+                secrets_config = yaml.safe_load(f) or {}
+            # Merge secrets into global config (secrets take precedence)
+            for key, val in secrets_config.items():
+                if isinstance(val, dict) and isinstance(global_config.get(key), dict):
+                    global_config[key].update(val)
+                else:
+                    global_config[key] = val
+            logger.info("Loaded global secrets from config/secrets.yaml")
+
+        # Legacy fallback: root config.yaml
+        if not global_config:
+            legacy_config_path = os.path.join(BASE_DIR, "config.yaml")
+            if os.path.isfile(legacy_config_path):
+                with open(legacy_config_path, "r", encoding="utf-8") as f:
+                    global_config = yaml.safe_load(f) or {}
+                logger.info("Loaded legacy global config from config.yaml")
+
+        # Inject env vars from config
         for key, val in global_config.get("env", {}).items():
             if val:
                 os.environ[key] = str(val)
                 logger.info(f"Global env: {key} set")
+
+        # Support both old env-based and new top-level serper_api_key
+        serper_key = global_config.get("serper_api_key", "")
+        if serper_key:
+            os.environ["SERPER_API_KEY"] = str(serper_key)
+            logger.info("Global env: SERPER_API_KEY set")
+
         if "rsshub_server" in global_config:
             os.environ["RSSHUB_SERVER"] = str(global_config["rsshub_server"])
         return global_config
@@ -250,7 +288,7 @@ class BotManager:
             return
 
         for name in sorted(os.listdir(BOTS_DIR)):
-            if name == "example":
+            if name.startswith("_"):
                 continue
             bot_dir = os.path.join(BOTS_DIR, name)
             if not os.path.isdir(bot_dir):

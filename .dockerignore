@@ -13,12 +13,14 @@ workspace/
 logs/
 local/
 
-# Config files (mounted at runtime)
+# Config files (mounted at runtime; templates are COPYed in Dockerfile)
+config/config.yaml
+config/secrets.yaml
+config/memobase.yaml
 config.yaml
 web_panel.yaml
 memobase-config.yaml
 .env
-.env.example
 
 # Deployment & scripts (not needed in image)
 deploy/

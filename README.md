@@ -45,6 +45,14 @@
 
 需要 Docker。
 
+一键安装：
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/syncmeta/NaturalChat/main/scripts/install.sh)
+```
+
+或者手动克隆：
+
 ```bash
 git clone https://github.com/syncmeta/NaturalChat.git && cd NaturalChat
 bash install.sh
@@ -127,6 +135,12 @@ my_skill/
 ## 目录结构
 
 ```
+config/                # 全局配置
+  config.yaml          # 非敏感配置（语言、RSSHub 等）
+  secrets.yaml         # 敏感配置（API 密钥等）
+  config.template.yaml # 配置模板
+  secrets.template.yaml# 密钥模板
+
 bots/<name>/
   config.yaml      # 配置
   secrets.yaml     # 密钥
@@ -135,7 +149,10 @@ bots/<name>/
   bot_data/        # 运行时数据
 
 common_skills/     # 共享内置技能
-prompts/default/   # 默认 prompt 模板
+prompts/
+  default/         # 默认 prompt 模板
+  zh/              # 中文 prompt
+  en/              # 英文 prompt
 docker/            # Dockerfile、docker-compose、Conduit 配置
 scripts/           # install.sh、nctl.sh、uninstall.sh
 ```

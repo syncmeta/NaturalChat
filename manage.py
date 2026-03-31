@@ -197,6 +197,8 @@ def list_bots():
 
     bots = []
     for name in sorted(os.listdir(BOTS_DIR)):
+        if name.startswith("_"):
+            continue
         bot_dir = os.path.join(BOTS_DIR, name)
         if not os.path.isdir(bot_dir):
             continue

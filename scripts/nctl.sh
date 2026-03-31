@@ -39,8 +39,11 @@ fi
 # ── Language ─────────────────────────────────────────────────────────────────
 
 LANG_UI="en"
-# Auto-detect from system locale
-if [[ "${LANG:-}" == zh* ]] || [[ "${LC_ALL:-}" == zh* ]]; then
+# Detect from config/config.yaml first, then fall back to system locale
+if [[ -f "$BASE_DIR/config/config.yaml" ]]; then
+    _cfg_lang="$(sed -n 's/^language: *"\{0,1\}\([^"]*\)"\{0,1\}/\1/p' "$BASE_DIR/config/config.yaml" 2>/dev/null | head -1)" || true
+    [[ "$_cfg_lang" == "zh" ]] && LANG_UI="zh"
+elif [[ "${LANG:-}" == zh* ]] || [[ "${LC_ALL:-}" == zh* ]]; then
     LANG_UI="zh"
 fi
 
@@ -775,6 +778,18 @@ cmd_config() {
         case "$action" in
             view)
                 echo ""
+                # Global config
+                if [[ -f "$BASE_DIR/config/config.yaml" ]]; then
+                    printf "  ${BOLD}─── config/config.yaml ───${NC}\n"
+                    sed 's/^/    /' "$BASE_DIR/config/config.yaml"
+                    echo ""
+                fi
+                if [[ -f "$BASE_DIR/config/secrets.yaml" ]]; then
+                    printf "  ${BOLD}─── config/secrets.yaml ───${NC}\n"
+                    sed 's/^/    /' "$BASE_DIR/config/secrets.yaml"
+                    echo ""
+                fi
+
                 printf "  ${BOLD}─── .env ───${NC}\n"
                 if [[ -f "$ENV_FILE" ]]; then
                     sed 's/^/    /' "$ENV_FILE"

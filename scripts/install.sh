@@ -1121,20 +1121,42 @@ BOT_DIR="$BOTS_DIR/$BOT_NAME"
 
 # ── Generate config files ────────────────────────────────────────────────────
 
-# Global config.yaml
-GLOBAL_CONFIG="$BASE_DIR/config.yaml"
-if [[ ! -f "$GLOBAL_CONFIG" ]]; then
-    cat > "$GLOBAL_CONFIG" <<YAML
-# NaturalChat global config — applies to all bots
+# Global config directory
+mkdir -p "$BASE_DIR/config"
 
-env:
-  # Google search API. Leave empty to use DuckDuckGo (free).
-  SERPER_API_KEY: "$SERPER_KEY"
+# config/config.yaml (non-sensitive global config)
+GLOBAL_CONFIG="$BASE_DIR/config/config.yaml"
+cat > "$GLOBAL_CONFIG" <<YAML
+# NaturalChat 全局配置 / Global Configuration
+# 对所有机器人生效 / Applies to all bots
 
-# RSSHub server for RSS feed aggregation.
+# 界面语言 / UI Language (zh / en)
+language: "$LANG_UI"
+
+# RSSHub 服务器地址 / RSSHub server URL
 rsshub_server: "$RSSHUB_URL"
 YAML
-fi
+
+# config/secrets.yaml (sensitive global config)
+GLOBAL_SECRETS="$BASE_DIR/config/secrets.yaml"
+cat > "$GLOBAL_SECRETS" <<YAML
+# NaturalChat 全局密钥 / Global Secrets
+# ⚠️ 请勿提交到版本控制 / DO NOT commit to version control
+
+# Google 搜索 API（留空则使用 DuckDuckGo）/ Google Search API (leave empty to use DuckDuckGo)
+serper_api_key: "$SERPER_KEY"
+
+# Memobase 配置（Docker 部署时自动生成）/ Memobase config (auto-generated for Docker deployment)
+memobase:
+  api_key: ""
+  llm_api_key: ""
+  llm_base_url: ""
+  llm_model: ""
+YAML
+chmod 600 "$GLOBAL_SECRETS"
+
+# Remove old root config files if they exist (replaced by config/ directory)
+rm -f "$BASE_DIR/config.example.yaml" "$BASE_DIR/.env.example"
 
 # Bot directory
 mkdir -p "$BOT_DIR/skills" "$BOT_DIR/bot_data"
@@ -1279,29 +1301,18 @@ chmod 600 "$SECRETS_FILE"
 if [[ ! -d "$BOT_DIR/prompts" ]]; then
     mkdir -p "$BOT_DIR/prompts"
 
-    # Copy default prompt templates
-    if [[ -d "$BASE_DIR/prompts/default" ]]; then
-        cp "$BASE_DIR/prompts/default"/*.md "$BOT_DIR/prompts/" 2>/dev/null || true
+    # Copy language-specific prompt templates (fall back to default)
+    PROMPT_LANG_DIR="$BASE_DIR/prompts/$LANG_UI"
+    if [[ ! -d "$PROMPT_LANG_DIR" ]]; then
+        PROMPT_LANG_DIR="$BASE_DIR/prompts/default"
+    fi
+    if [[ -d "$PROMPT_LANG_DIR" ]]; then
+        cp "$PROMPT_LANG_DIR"/*.md "$BOT_DIR/prompts/" 2>/dev/null || true
+        cp "$PROMPT_LANG_DIR"/registry.yaml "$BOT_DIR/prompts/" 2>/dev/null || true
     fi
 
-    # Write main prompt
-    cat > "$BOT_DIR/prompts/main.md" <<'PROMPT'
-You are a friendly AI assistant.
-
-# Note
-- This prompt is written in English as a default template
-- Always reply in the language the user is using
-
-# Personality
-- Helpful and natural
-
-# Response style
-- No customer-service tone
-- Direct answers, no unnecessary preamble
-- Concise, natural, like instant messaging
-PROMPT
-
-    # Generate registry.yaml
+    # Only write registry.yaml if not already copied
+    if [[ ! -f "$BOT_DIR/prompts/registry.yaml" ]]; then
     cat > "$BOT_DIR/prompts/registry.yaml" <<'REGISTRY'
 version: 1
 prompts:
@@ -1338,6 +1349,7 @@ prompts:
     purpose: Ability descriptions injected into the main model.
     used_by: src.bot_manager.create_bot -> LLMAgent(bot_abilities)
 REGISTRY
+    fi
 fi
 
 # ── bot_meta.json ──
@@ -1393,8 +1405,8 @@ fi
 # Save compose project name for later use (uninstall, service restart, etc.)
 save_var COMPOSE_PROJECT "${COMPOSE_PROJECT:-naturalchat}"
 
-# ── Memobase config.yaml (LLM settings for memobase server) ──
-MEMOBASE_CONFIG="$BASE_DIR/memobase-config.yaml"
+# ── Memobase config (LLM settings for memobase server) ──
+MEMOBASE_CONFIG="$BASE_DIR/config/memobase.yaml"
 # Docker creates a directory if mount target doesn't exist as a file — remove it
 if [[ -d "$MEMOBASE_CONFIG" ]]; then
     rm -rf "$MEMOBASE_CONFIG"
@@ -1417,7 +1429,27 @@ if [[ "$USE_MEMOBASE" == "true" ]] && [[ "$MEMOBASE_MODE" == "docker" ]] && [[ !
         echo "enable_event_embedding: false"
     } > "$MEMOBASE_CONFIG"
     chmod 600 "$MEMOBASE_CONFIG"
+
+    # Also update config/secrets.yaml with memobase LLM settings
+    cat > "$GLOBAL_SECRETS" <<YAML
+# NaturalChat 全局密钥 / Global Secrets
+# ⚠️ 请勿提交到版本控制 / DO NOT commit to version control
+
+# Google 搜索 API（留空则使用 DuckDuckGo）/ Google Search API (leave empty to use DuckDuckGo)
+serper_api_key: "$SERPER_KEY"
+
+# Memobase 配置 / Memobase config
+memobase:
+  api_key: "${MEMOBASE_KEY:-}"
+  llm_api_key: "${API_KEY}"
+  llm_base_url: "${BASE_URL}"
+  llm_model: "${MODEL}"
+YAML
+    chmod 600 "$GLOBAL_SECRETS"
 fi
+
+# Remove old memobase-config.yaml at root if it exists
+rm -f "$BASE_DIR/memobase-config.yaml"
 
 # ── Web panel credentials (random port + random username) ──
 PANEL_CONFIG="$BASE_DIR/web_panel.yaml"
