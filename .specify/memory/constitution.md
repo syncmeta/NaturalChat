@@ -1,50 +1,41 @@
-# NaturalChat Constitution
+# NaturalChat 宪法
 
-## Core Principles
+本文档定义不可违反的技术原则和约束。产品定义见 PRD。
 
-### I. Channel-Centric Architecture
-The system is organized around Channels (messaging platform adapters). Each Channel implements a common interface. The Bot orchestration layer stays thin — it dispatches messages to/from Channels and delegates all heavy logic to dedicated modules (memory, skills, reflection, etc.). No god-objects.
+## 技术原则
 
-### II. TypeScript + Node.js
-All code is TypeScript (strict mode). Runtime is Node.js (LTS) or Bun. No Python, no mixed-language runtime. Use `async/await` throughout — no callback patterns, no sync blocking calls.
+### I. TypeScript 严格模式
+所有代码使用 TypeScript（`strict: true`）。全程 `async/await`，不用回调，不做同步阻塞。
 
-### III. OpenAI-Compatible LLM Interface
-LLM calls go through the `openai` npm package against OpenAI-compatible endpoints (OpenRouter, local models, etc.). The system is model-agnostic — never assume a specific model's capabilities. Tool/function calling follows the OpenAI tool format.
+### II. 统一模型提供商
+整个项目使用一个模型提供商（一个 API base URL + 一个 API key），通过 `openai` npm 包访问 OpenAI 兼容端点。不同任务使用不同模型，全局配置默认值，Bot 可覆盖。
+
+### III. YAML + Zod 配置
+所有配置使用 YAML。每个配置文件有对应的 Zod schema，启动时校验，无效即报错——不对缺失的必填字段静默使用默认值。
 
 ### IV. Bot-as-Directory
-Each bot instance lives in `bots/<name>/` with its own `config.yaml`, `secrets.yaml`, `prompts/`, `skills/`, and `data/`. A bot directory is self-contained and portable. Global shared resources (common skills, prompt templates) live outside bot directories.
+每个 Bot 自包含在 `bots/<name>/` 下（config、secrets、prompts、skills、data）。全局共享资源放在 bot 目录之外。
 
-### V. Configuration: YAML + Zod
-All configuration is YAML. Every config file has a corresponding Zod schema that validates at startup. Fail fast on invalid config — never silently use defaults for missing required fields.
+### V. 组合优先
+不搞类继承层级。Channel 接口是唯一的抽象。其余一律用组合和依赖注入。
 
-### VI. Honcho Local-First Memory
-User memory uses Honcho, deployed locally via Docker by default. No cloud dependency for core functionality. Local file storage (JSON) for bot-level state (self-reflection, impressions, meta). Memory is a separate module, not interleaved with brain logic.
+### VI. Docker-Only 部署
+仅支持 Docker Compose 部署。Honcho、RSSHub 等服务全部容器化。不支持裸机部署。
 
-### VII. Externalized Prompts
-All LLM prompts are external Markdown files in `prompts/` directories. Never hardcode prompt strings in source code. Support multiple languages (en, zh at minimum). Prompts are versioned alongside code.
+### VII. Prompt 外部化
+所有 LLM prompt 是外部 Markdown 文件，不硬编码在源代码中。使用中文编写，不做多语言版本。
 
-### VIII. Skill Progressive Disclosure
-Skills are defined by `SKILL.md` (YAML frontmatter for schema + Markdown description) and a `scripts/` directory for execution logic. Skills are dynamically loaded and hot-reloadable. Common skills live in `common_skills/`, bot-specific skills in `bots/<name>/skills/`.
+### VIII. 无全局可变状态
+所有状态限定在 Bot 实例内，或通过依赖注入显式共享。文件操作只用异步 API。
 
-### IX. Docker-First Deployment
-The primary deployment method is Docker Compose. All services (bot, Honcho, RSSHub, etc.) are containerized. Bare-metal deployment is supported but secondary. The install script handles both paths.
+## 开发流程
 
-## Technical Constraints
+- 每个功能按 spec → plan → tasks → implement 推进
+- 测试使用 Vitest
+- 代码规范：ESLint + Prettier
 
-- **Package manager**: Use a single package manager consistently (npm or bun). Do not mix.
-- **No class inheritance hierarchies**: Prefer composition and interfaces over deep class trees. Channel interface is the only abstract base.
-- **Error handling**: Use typed errors. Never swallow errors silently. Log at appropriate levels.
-- **No global mutable state**: All state is scoped to bot instances or explicitly shared via dependency injection.
-- **File I/O**: Use `node:fs/promises` exclusively. No sync file operations.
+## 治理
 
-## Development Workflow
+本宪法优先于所有其他开发指导。任何修订需明确记录理由。
 
-- Each feature starts with a spec, then plan, then tasks, then implementation.
-- Tests use Vitest. Write tests for core logic (LLM agent, memory, skill loader, brain orchestration). Channel adapters are tested via integration tests.
-- Lint with ESLint + Prettier. Strict TypeScript — no `any` except at API boundaries with explicit type guards.
-
-## Governance
-
-This constitution supersedes all other development guidance. Any amendment requires explicit documentation and rationale.
-
-**Version**: 1.0.0 | **Ratified**: 2026-04-01
+**版本**: 1.0.0 | **批准日期**: 2026-04-01
