@@ -228,11 +228,12 @@ class LLMAgent:
             details = getattr(usage, 'prompt_tokens_details', None)
             if details:
                 cached_tokens = getattr(details, 'cached_tokens', 0)
-            # OpenRouter returns cost in usage; some providers use different fields
-            cost = getattr(usage, 'total_cost', 0.0) or 0.0
+            # OpenRouter returns cost in usage.cost_details
+            cost_details = getattr(usage, 'cost_details', None)
+            if cost_details:
+                cost = getattr(cost_details, 'upstream_inference_cost', 0.0) or 0.0
             if not cost:
-                # Try alternative field names
-                cost = getattr(usage, 'cost', 0.0) or 0.0
+                cost = getattr(usage, 'total_cost', 0.0) or getattr(usage, 'cost', 0.0) or 0.0
         return LLMResult(
             content=content,
             prompt_tokens=prompt_tokens,

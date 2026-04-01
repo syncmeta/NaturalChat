@@ -1018,7 +1018,8 @@ class BotBrain:
                     actual_model = getattr(response, 'model', model_name)
                     usage = getattr(response, 'usage', None)
                     if usage:
-                        _cost = getattr(usage, 'total_cost', 0.0) or getattr(usage, 'cost', 0.0) or 0.0
+                        _cd = getattr(usage, 'cost_details', None)
+                        _cost = (getattr(_cd, 'upstream_inference_cost', 0.0) or 0.0) if _cd else (getattr(usage, 'total_cost', 0.0) or getattr(usage, 'cost', 0.0) or 0.0)
                         await self.auditor.record(
                             jid, "critic_review", actual_model,
                             getattr(usage, 'prompt_tokens', 0),
