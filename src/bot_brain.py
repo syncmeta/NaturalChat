@@ -770,6 +770,7 @@ class BotBrain:
             await self.auditor.record(
                 sender_jid, "chat", llm_result.model,
                 llm_result.prompt_tokens, llm_result.completion_tokens, llm_result.cached_tokens,
+                cost=llm_result.cost,
             )
 
         # Insert chat to Memobase
@@ -853,6 +854,7 @@ class BotBrain:
             await self.auditor.record(
                 jid, "reflection", llm_result.model,
                 llm_result.prompt_tokens, llm_result.completion_tokens, llm_result.cached_tokens,
+                cost=llm_result.cost,
             )
 
             replies = self.llm.split_and_filter_silence(llm_result.content)
@@ -930,6 +932,7 @@ class BotBrain:
             await self.auditor.record(
                 contact_jid, "memory_update", llm_result.model,
                 llm_result.prompt_tokens, llm_result.completion_tokens, llm_result.cached_tokens,
+                cost=llm_result.cost,
             )
 
             content = llm_result.content
@@ -1015,11 +1018,13 @@ class BotBrain:
                     actual_model = getattr(response, 'model', model_name)
                     usage = getattr(response, 'usage', None)
                     if usage:
+                        _cost = getattr(usage, 'total_cost', 0.0) or getattr(usage, 'cost', 0.0) or 0.0
                         await self.auditor.record(
                             jid, "critic_review", actual_model,
                             getattr(usage, 'prompt_tokens', 0),
                             getattr(usage, 'completion_tokens', 0),
                             getattr(getattr(usage, 'prompt_tokens_details', None), 'cached_tokens', 0),
+                            cost=float(_cost),
                         )
                     return {"name": name, "feedback": content, "no_issues": "[NO_ISSUES]" in content}
                 except Exception as e:
@@ -1068,6 +1073,7 @@ class BotBrain:
                 await self.auditor.record(
                     jid, "critic_review", llm_result.model,
                     llm_result.prompt_tokens, llm_result.completion_tokens, llm_result.cached_tokens,
+                    cost=llm_result.cost,
                 )
 
                 correction_replies = self.llm.split_and_filter_silence(llm_result.content)
@@ -1311,11 +1317,13 @@ class BotBrain:
         actual_model = getattr(response, 'model', model_name)
         usage = getattr(response, 'usage', None)
         if usage:
+            _cost = getattr(usage, 'total_cost', 0.0) or getattr(usage, 'cost', 0.0) or 0.0
             await self.auditor.record(
                 "_surfing", "surfing", actual_model,
                 getattr(usage, 'prompt_tokens', 0),
                 getattr(usage, 'completion_tokens', 0),
                 getattr(getattr(usage, 'prompt_tokens_details', None), 'cached_tokens', 0),
+                cost=float(_cost),
             )
         return LLMResult(content=content, model=actual_model)
 

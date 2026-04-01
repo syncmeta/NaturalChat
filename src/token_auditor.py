@@ -25,6 +25,7 @@ class LLMResult:
     completion_tokens: int = 0
     cached_tokens: int = 0
     model: str = ""  # Actual model used (from response.model)
+    cost: float = 0.0  # Cost in USD (if provider returns it)
 
 
 class TokenAuditor:
@@ -68,6 +69,7 @@ class TokenAuditor:
         prompt_tokens: int,
         completion_tokens: int,
         cached_tokens: int = 0,
+        cost: float = 0.0,
     ):
         """Record a token consumption event."""
         async with self._lock:
@@ -75,36 +77,39 @@ class TokenAuditor:
             today = datetime.now().strftime("%Y-%m-%d")
 
             # Add to sliding window records
-            self._records.append((now, contact_jid, task_type, model, prompt_tokens, completion_tokens, cached_tokens))
+            self._records.append((now, contact_jid, task_type, model, prompt_tokens, completion_tokens, cached_tokens, cost))
 
             # Update totals by task
             if contact_jid not in self._totals:
                 self._totals[contact_jid] = {}
             by_task = self._totals[contact_jid]
             if task_type not in by_task:
-                by_task[task_type] = {"prompt": 0, "completion": 0, "cached": 0}
+                by_task[task_type] = {"prompt": 0, "completion": 0, "cached": 0, "cost": 0.0}
             by_task[task_type]["prompt"] += prompt_tokens
             by_task[task_type]["completion"] += completion_tokens
             by_task[task_type]["cached"] += cached_tokens
+            by_task[task_type]["cost"] = by_task[task_type].get("cost", 0.0) + cost
 
             # Update totals by model
             if contact_jid not in self._model_totals:
                 self._model_totals[contact_jid] = {}
             by_model = self._model_totals[contact_jid]
             if model not in by_model:
-                by_model[model] = {"prompt": 0, "completion": 0, "cached": 0}
+                by_model[model] = {"prompt": 0, "completion": 0, "cached": 0, "cost": 0.0}
             by_model[model]["prompt"] += prompt_tokens
             by_model[model]["completion"] += completion_tokens
             by_model[model]["cached"] += cached_tokens
+            by_model[model]["cost"] = by_model[model].get("cost", 0.0) + cost
 
             # Update daily totals
             if today not in self._daily:
                 self._daily[today] = {}
             if contact_jid not in self._daily[today]:
-                self._daily[today][contact_jid] = {"prompt": 0, "completion": 0, "cached": 0}
+                self._daily[today][contact_jid] = {"prompt": 0, "completion": 0, "cached": 0, "cost": 0.0}
             self._daily[today][contact_jid]["prompt"] += prompt_tokens
             self._daily[today][contact_jid]["completion"] += completion_tokens
             self._daily[today][contact_jid]["cached"] += cached_tokens
+            self._daily[today][contact_jid]["cost"] = self._daily[today][contact_jid].get("cost", 0.0) + cost
 
             # Cleanup old records and save
             self._cleanup()
@@ -122,15 +127,20 @@ class TokenAuditor:
     def _compute_3h(self) -> dict:
         """Compute 3-hour sliding window aggregates."""
         cutoff = time.time() - 3 * 3600
-        result = {}  # {contact_jid: {prompt, completion, cached}}
-        for ts, jid, task, model, p, c, cached in self._records:
+        result = {}  # {contact_jid: {prompt, completion, cached, cost}}
+        for record in self._records:
+            ts = record[0]
             if ts < cutoff:
                 continue
+            jid = record[1]
+            p, c, cached = record[4], record[5], record[6]
+            cost = record[7] if len(record) > 7 else 0.0
             if jid not in result:
-                result[jid] = {"prompt": 0, "completion": 0, "cached": 0}
+                result[jid] = {"prompt": 0, "completion": 0, "cached": 0, "cost": 0.0}
             result[jid]["prompt"] += p
             result[jid]["completion"] += c
             result[jid]["cached"] += cached
+            result[jid]["cost"] += cost
         return result
 
     def _save(self):
@@ -138,45 +148,48 @@ class TokenAuditor:
         today = datetime.now().strftime("%Y-%m-%d")
         three_h = self._compute_3h()
 
+        _zero = {"prompt": 0, "completion": 0, "cached": 0, "cost": 0.0}
+        _keys = ("prompt", "completion", "cached", "cost")
+
         # Build per-contact output
         contacts = {}
         all_jids = set(self._totals.keys()) | set(self._model_totals.keys())
         for jid in all_jids:
-            contact_total = {"prompt": 0, "completion": 0, "cached": 0}
+            contact_total = dict(_zero)
             by_task = self._totals.get(jid, {})
             for task_data in by_task.values():
-                for k in ("prompt", "completion", "cached"):
+                for k in _keys:
                     contact_total[k] += task_data.get(k, 0)
 
             contacts[jid] = {
-                "last_3h": three_h.get(jid, {"prompt": 0, "completion": 0, "cached": 0}),
-                "today": self._daily.get(today, {}).get(jid, {"prompt": 0, "completion": 0, "cached": 0}),
+                "last_3h": three_h.get(jid, dict(_zero)),
+                "today": self._daily.get(today, {}).get(jid, dict(_zero)),
                 "total": contact_total,
                 "by_task": by_task,
                 "by_model": self._model_totals.get(jid, {}),
             }
 
         # Build global aggregates
-        global_total = {"prompt": 0, "completion": 0, "cached": 0}
-        global_3h = {"prompt": 0, "completion": 0, "cached": 0}
-        global_today = {"prompt": 0, "completion": 0, "cached": 0}
+        global_total = dict(_zero)
+        global_3h = dict(_zero)
+        global_today = dict(_zero)
         global_by_task = {}
         global_by_model = {}
 
         for jid, cdata in contacts.items():
-            for k in ("prompt", "completion", "cached"):
+            for k in _keys:
                 global_total[k] += cdata["total"].get(k, 0)
                 global_3h[k] += cdata["last_3h"].get(k, 0)
                 global_today[k] += cdata["today"].get(k, 0)
             for task, tdata in cdata.get("by_task", {}).items():
                 if task not in global_by_task:
-                    global_by_task[task] = {"prompt": 0, "completion": 0, "cached": 0}
-                for k in ("prompt", "completion", "cached"):
+                    global_by_task[task] = dict(_zero)
+                for k in _keys:
                     global_by_task[task][k] += tdata.get(k, 0)
             for model, mdata in cdata.get("by_model", {}).items():
                 if model not in global_by_model:
-                    global_by_model[model] = {"prompt": 0, "completion": 0, "cached": 0}
-                for k in ("prompt", "completion", "cached"):
+                    global_by_model[model] = dict(_zero)
+                for k in _keys:
                     global_by_model[model][k] += mdata.get(k, 0)
 
         output = {

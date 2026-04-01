@@ -223,16 +223,23 @@ class LLMAgent:
         prompt_tokens = getattr(usage, 'prompt_tokens', 0) if usage else 0
         completion_tokens = getattr(usage, 'completion_tokens', 0) if usage else 0
         cached_tokens = 0
+        cost = 0.0
         if usage:
             details = getattr(usage, 'prompt_tokens_details', None)
             if details:
                 cached_tokens = getattr(details, 'cached_tokens', 0)
+            # OpenRouter returns cost in usage; some providers use different fields
+            cost = getattr(usage, 'total_cost', 0.0) or 0.0
+            if not cost:
+                # Try alternative field names
+                cost = getattr(usage, 'cost', 0.0) or 0.0
         return LLMResult(
             content=content,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             cached_tokens=cached_tokens,
             model=actual_model,
+            cost=float(cost) if cost else 0.0,
         )
 
     async def _handle_tool_calls(self, kwargs: dict, tool_executors: Optional[Dict] = None):

@@ -129,6 +129,19 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 .btn-restart:hover { opacity: 0.9; }
 .config-status { font-size: 13px; color: var(--fg2); align-self: center; margin-right: auto; }
 
+/* Audit */
+.audit-view { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.audit-view.hidden { display: none; }
+.audit-card { background: #fff; border: 1px solid var(--bg4); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 12px; }
+.audit-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 10px; color: var(--accent); }
+.audit-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.audit-stat { text-align: center; }
+.audit-stat .val { font-size: 20px; font-weight: 700; color: var(--fg); }
+.audit-stat .label { font-size: 11px; color: var(--fg2); margin-top: 2px; }
+.audit-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+.audit-table th, .audit-table td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--bg3); }
+.audit-table th { font-weight: 600; color: var(--fg2); font-size: 11px; text-transform: uppercase; }
+
 /* Empty state */
 .empty-state {
   flex: 1; display: flex; align-items: center; justify-content: center;
@@ -178,6 +191,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
       <div class="tab-group">
         <button class="tab-btn active" data-tab="chat" onclick="switchTab('chat')">Chat</button>
         <button class="tab-btn" data-tab="config" onclick="switchTab('config')">Config</button>
+        <button class="tab-btn" data-tab="audit" onclick="switchTab('audit')">Audit</button>
       </div>
     </div>
 
@@ -201,6 +215,12 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
         <span class="config-status" id="configStatus"></span>
         <button class="btn-save" onclick="saveConfig()">Save</button>
         <button class="btn-restart" onclick="restartBot()">Restart Bot</button>
+      </div>
+    </div>
+
+    <div class="audit-view hidden" id="auditView">
+      <div class="audit-content" id="auditContent" style="padding:20px;overflow-y:auto;flex:1;">
+        <div style="color:var(--fg2);text-align:center;padding:40px 0;">Loading...</div>
       </div>
     </div>
   </div>
@@ -292,8 +312,10 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.getElementById('chatView').classList.toggle('hidden', tab !== 'chat');
   document.getElementById('configView').classList.toggle('hidden', tab !== 'config');
+  document.getElementById('auditView').classList.toggle('hidden', tab !== 'audit');
   if (tab === 'config') loadConfig();
   if (tab === 'chat') renderMessages();
+  if (tab === 'audit') loadAudit();
 }
 
 // ── Chat ──
@@ -438,6 +460,78 @@ async function restartBot() {
     }
   } catch (e) {
     status.textContent = 'Restart failed';
+  }
+}
+
+// ── Audit ──
+function fmtTokens(n) { return n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'k' : n.toString(); }
+function fmtCost(c) { return c > 0 ? '$' + c.toFixed(4) : '—'; }
+
+async function loadAudit() {
+  if (!currentBot) return;
+  const el = document.getElementById('auditContent');
+  el.innerHTML = '<div style="color:var(--fg2);text-align:center;padding:40px 0;">Loading...</div>';
+  try {
+    const res = await fetch(`${API}/api/audit/${currentBot}`, {headers: {'Authorization': `Bearer ${token}`}});
+    if (res.status === 401) { logout(); return; }
+    const data = await res.json();
+    const audit = data[currentBot] || {};
+    const g = audit.global || {};
+    const today = g.today || {};
+    const h3 = g.last_3h || {};
+    const total = g.total || {};
+
+    let html = '';
+
+    // Summary cards
+    html += '<div class="audit-card"><h3>Overview</h3><div class="audit-grid">';
+    html += `<div class="audit-stat"><div class="val">${fmtTokens((today.prompt||0)+(today.completion||0))}</div><div class="label">Tokens Today</div></div>`;
+    html += `<div class="audit-stat"><div class="val">${fmtCost(today.cost||0)}</div><div class="label">Cost Today</div></div>`;
+    html += `<div class="audit-stat"><div class="val">${fmtTokens((h3.prompt||0)+(h3.completion||0))}</div><div class="label">Tokens (3h)</div></div>`;
+    html += `<div class="audit-stat"><div class="val">${fmtCost(h3.cost||0)}</div><div class="label">Cost (3h)</div></div>`;
+    html += `<div class="audit-stat"><div class="val">${fmtTokens((total.prompt||0)+(total.completion||0))}</div><div class="label">Tokens Total</div></div>`;
+    html += `<div class="audit-stat"><div class="val">${fmtCost(total.cost||0)}</div><div class="label">Cost Total</div></div>`;
+    html += '</div></div>';
+
+    // By model
+    const byModel = g.by_model || {};
+    if (Object.keys(byModel).length) {
+      html += '<div class="audit-card"><h3>By Model</h3><table class="audit-table">';
+      html += '<tr><th>Model</th><th>Prompt</th><th>Completion</th><th>Cached</th><th>Cost</th></tr>';
+      for (const [model, d] of Object.entries(byModel)) {
+        html += `<tr><td>${escapeHtml(model)}</td><td>${fmtTokens(d.prompt||0)}</td><td>${fmtTokens(d.completion||0)}</td><td>${fmtTokens(d.cached||0)}</td><td>${fmtCost(d.cost||0)}</td></tr>`;
+      }
+      html += '</table></div>';
+    }
+
+    // By task
+    const byTask = g.by_task || {};
+    if (Object.keys(byTask).length) {
+      html += '<div class="audit-card"><h3>By Task</h3><table class="audit-table">';
+      html += '<tr><th>Task</th><th>Prompt</th><th>Completion</th><th>Cost</th></tr>';
+      for (const [task, d] of Object.entries(byTask)) {
+        html += `<tr><td>${escapeHtml(task)}</td><td>${fmtTokens(d.prompt||0)}</td><td>${fmtTokens(d.completion||0)}</td><td>${fmtCost(d.cost||0)}</td></tr>`;
+      }
+      html += '</table></div>';
+    }
+
+    // By contact
+    const contacts = audit.contacts || {};
+    if (Object.keys(contacts).length) {
+      html += '<div class="audit-card"><h3>By Contact</h3><table class="audit-table">';
+      html += '<tr><th>Contact</th><th>Today</th><th>Total</th><th>Cost</th></tr>';
+      for (const [jid, d] of Object.entries(contacts)) {
+        const t = d.today || {};
+        const a = d.total || {};
+        html += `<tr><td>${escapeHtml(jid)}</td><td>${fmtTokens((t.prompt||0)+(t.completion||0))}</td><td>${fmtTokens((a.prompt||0)+(a.completion||0))}</td><td>${fmtCost(a.cost||0)}</td></tr>`;
+      }
+      html += '</table></div>';
+    }
+
+    html += `<div style="text-align:right;color:var(--fg2);font-size:11px;margin-top:8px;">Last updated: ${audit.last_updated || '—'}</div>`;
+    el.innerHTML = html || '<div style="color:var(--fg2);text-align:center;padding:40px 0;">No audit data yet</div>';
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--red);text-align:center;padding:40px 0;">Failed to load audit data</div>`;
   }
 }
 

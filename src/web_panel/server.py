@@ -48,6 +48,8 @@ class WebPanel:
         self.app.router.add_post("/api/bots/{name}/restart", self._handle_restart_bot)
         self.app.router.add_get("/api/bots/{name}/history", self._handle_get_history)
         self.app.router.add_get("/ws/chat/{bot_name}", self._handle_ws_chat)
+        self.app.router.add_get("/api/audit", self._handle_audit)
+        self.app.router.add_get("/api/audit/{bot_name}", self._handle_audit)
         # Static files (SPA) - must be last
         if STATIC_DIR.is_dir():
             self.app.router.add_static("/static", STATIC_DIR)
@@ -237,6 +239,22 @@ class WebPanel:
             logger.info(f"[{bot_name}] Web panel disconnected: session={session_id}")
 
         return ws
+
+    # ── Audit ──
+
+    async def _handle_audit(self, request: web.Request) -> web.Response:
+        if not self._check_auth(request):
+            return web.json_response({"error": "Unauthorized"}, status=401)
+
+        bot_name = request.match_info.get("bot_name")
+        result = {}
+        for bot in self.bot_manager.bots:
+            if bot_name and bot.name != bot_name:
+                continue
+            audit = bot.brain.auditor.get_audit() if hasattr(bot.brain, 'auditor') else {}
+            result[bot.name] = audit
+
+        return web.json_response(result)
 
     # ── Static / SPA ──
 
