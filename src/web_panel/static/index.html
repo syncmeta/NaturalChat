@@ -7,12 +7,13 @@
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --bg: #0f0f0f; --bg2: #1a1a1a; --bg3: #242424; --bg4: #2e2e2e;
-  --fg: #e4e4e4; --fg2: #999; --accent: #6c8cff; --accent2: #4a6adf;
-  --green: #4caf50; --red: #ef5350; --yellow: #ffb74d;
+  --bg: #f6f8eb; --bg2: #eef0e3; --bg3: #e2e5d6; --bg4: #d4d8c8;
+  --fg: #1e1e1e; --fg2: #666; --accent: #5443bc; --accent2: #443599;
+  --green: #3a8f3e; --red: #d32f2f; --yellow: #e6a117;
   --radius: 12px; --radius-sm: 8px;
 }
 html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--fg); }
+::selection { background: var(--accent); color: #fff; }
 
 /* ── Login ── */
 .login-overlay {
@@ -24,7 +25,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 }
 .login-box h1 { font-size: 20px; margin-bottom: 24px; text-align: center; }
 .login-box input {
-  width: 100%; padding: 12px 16px; margin-bottom: 12px; background: var(--bg3); border: 1px solid var(--bg4);
+  width: 100%; padding: 12px 16px; margin-bottom: 12px; background: #fff; border: 1px solid var(--bg4);
   border-radius: var(--radius-sm); color: var(--fg); font-size: 14px; outline: none;
 }
 .login-box input:focus { border-color: var(--accent); }
@@ -82,7 +83,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 }
 .msg { max-width: 75%; padding: 10px 16px; border-radius: 16px; font-size: 14px; line-height: 1.5; word-wrap: break-word; white-space: pre-wrap; }
 .msg.user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
-.msg.bot { align-self: flex-start; background: var(--bg3); border-bottom-left-radius: 4px; }
+.msg.bot { align-self: flex-start; background: #fff; border: 1px solid var(--bg4); border-bottom-left-radius: 4px; }
 .msg.system { align-self: center; color: var(--fg2); font-size: 12px; background: none; padding: 4px; }
 .typing-indicator { align-self: flex-start; color: var(--fg2); font-size: 13px; padding: 4px 8px; }
 .typing-indicator::after { content: '...'; animation: dots 1.4s infinite; }
@@ -92,7 +93,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
   padding: 12px 20px; border-top: 1px solid var(--bg3); display: flex; gap: 8px; background: var(--bg2);
 }
 .chat-input-area textarea {
-  flex: 1; padding: 10px 14px; background: var(--bg3); border: 1px solid var(--bg4);
+  flex: 1; padding: 10px 14px; background: #fff; border: 1px solid var(--bg4);
   border-radius: var(--radius-sm); color: var(--fg); font-size: 14px; font-family: inherit;
   resize: none; outline: none; min-height: 42px; max-height: 120px;
 }
@@ -111,7 +112,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
   flex: 1; padding: 16px; overflow: hidden; display: flex; flex-direction: column;
 }
 .config-editor textarea {
-  flex: 1; width: 100%; background: var(--bg); border: 1px solid var(--bg4);
+  flex: 1; width: 100%; background: #fff; border: 1px solid var(--bg4);
   border-radius: var(--radius-sm); color: var(--fg); font-family: 'SF Mono', Monaco, 'Cascadia Code', Consolas, monospace;
   font-size: 13px; padding: 16px; resize: none; outline: none; line-height: 1.6; tab-size: 2;
 }
@@ -124,7 +125,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 }
 .btn-save { background: var(--green); color: #fff; }
 .btn-save:hover { opacity: 0.9; }
-.btn-restart { background: var(--yellow); color: #000; }
+.btn-restart { background: var(--yellow); color: #fff; }
 .btn-restart:hover { opacity: 0.9; }
 .config-status { font-size: 13px; color: var(--fg2); align-self: center; margin-right: auto; }
 
@@ -145,6 +146,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #bbb; }
 </style>
 </head>
 <body>

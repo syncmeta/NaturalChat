@@ -14,7 +14,7 @@ trap 'echo ""; echo "[CRASH] Script failed at line $LINENO (exit code $?)" >&2' 
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'
 BOLD='\033[1m'; DIM='\033[2m'; NC='\033[0m'
-PURPLE='\033[1;38;2;111;83;250m'
+PURPLE='\033[1;38;2;84;67;188m'
 
 LANG_UI="en"
 
