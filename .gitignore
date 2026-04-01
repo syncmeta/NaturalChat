@@ -4,7 +4,7 @@ __pycache__/
 *.pyc
 .DS_Store
 workspace/
-.claude/
+.claude/settings.local.json
 memobase/
 .install_state/
 bots/
