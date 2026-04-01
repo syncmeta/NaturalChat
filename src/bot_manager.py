@@ -170,12 +170,12 @@ def create_bot(config: dict) -> BotInstance:
     bot_data_dir = os.path.join(bot_dir, "bot_data")
     os.makedirs(bot_data_dir, exist_ok=True)
 
-    # Create memory manager (Memobase + local files)
-    memobase_config = config.get("memobase", {})
+    # Create memory manager (Honcho + local files)
+    honcho_config = config.get("honcho", {})
     memory_manager = MemoryManager(
         bot_data_dir=bot_data_dir,
-        memobase_url=memobase_config.get("url", ""),
-        memobase_api_key=memobase_config.get("api_key", ""),
+        honcho_url=honcho_config.get("url", ""),
+        honcho_api_key=honcho_config.get("api_key", ""),
     )
     bot_meta = memory_manager.load_bot_meta()
 
@@ -230,7 +230,7 @@ def create_bot(config: dict) -> BotInstance:
     platforms = list(transports.keys())
     logger.info(
         f"Created bot '{bot_name}' (platforms: {platforms}, model: {model}, "
-        f"skills: {len(skills)}, memobase: {'yes' if memobase_config.get('url') else 'no'})"
+        f"skills: {len(skills)}, honcho: {'yes' if honcho_config.get('url') else 'no'})"
     )
     return instance
 

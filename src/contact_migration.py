@@ -19,7 +19,7 @@ _TAGGED_CONTACT_RE = re.compile(r"\[(?:JID|Contact):\s*([^\]]+)\]")
 
 _JSON_FILES = (
     "bot_meta.json",
-    "memobase_uid_map.json",
+    "honcho_session_map.json",
     "token_audit.json",
 )
 _TEXT_FILES = (
@@ -83,7 +83,7 @@ def _build_alias_map(bot_dir: str, bot_meta: dict) -> Dict[str, str]:
         if is_contact_id(value) and value not in canonical_ids:
             canonical_ids.append(value)
 
-    uid_map_path = os.path.join(bot_dir, "bot_data", "memobase_uid_map.json")
+    uid_map_path = os.path.join(bot_dir, "bot_data", "honcho_session_map.json")
     if os.path.isfile(uid_map_path):
         try:
             with open(uid_map_path, "r", encoding="utf-8") as f:
@@ -147,7 +147,7 @@ def _collect_legacy_ids(bot_dir: str, bot_meta: dict) -> List[str]:
             add(token)
 
     for path in (
-        os.path.join(bot_dir, "bot_data", "memobase_uid_map.json"),
+        os.path.join(bot_dir, "bot_data", "honcho_session_map.json"),
         os.path.join(bot_dir, "bot_data", "token_audit.json"),
     ):
         if not os.path.isfile(path):

@@ -39,14 +39,14 @@ if [[ -f "$BASE_DIR/docker/docker-compose.yml" ]] && command -v docker &>/dev/nu
         CP="$(grep '^COMPOSE_PROJECT_NAME=' "$BASE_DIR/.env" 2>/dev/null | cut -d= -f2)" || true
         [[ -n "${CP:-}" ]] && PROJECT_FLAG="-p $CP"
     fi
-    docker compose $PROJECT_FLAG --profile bot --profile matrix --profile memobase --profile crawl4ai --profile rsshub \
+    docker compose $PROJECT_FLAG --profile bot --profile matrix --profile honcho --profile crawl4ai --profile rsshub \
         --env-file "$BASE_DIR/.env" -f "$BASE_DIR/docker/docker-compose.yml" \
         down -v --rmi local --remove-orphans 2>/dev/null || true
     if [[ -n "${CP:-}" ]]; then
         docker ps -a --filter "label=com.docker.compose.project=$CP" -q 2>/dev/null | xargs -r docker rm -f 2>/dev/null || true
         docker network ls --filter "label=com.docker.compose.project=$CP" -q 2>/dev/null | xargs -r docker network rm 2>/dev/null || true
-        # Explicitly remove named volumes (conduit-data, memobase-pg)
-        for vol in "${CP}_conduit-data" "${CP}_memobase-pg"; do
+        # Explicitly remove named volumes (conduit-data, honcho-pg)
+        for vol in "${CP}_conduit-data" "${CP}_honcho-pg"; do
             docker volume rm "$vol" 2>/dev/null || true
         done
     fi

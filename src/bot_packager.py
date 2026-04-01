@@ -235,7 +235,7 @@ def import_bot(
 
         non_secret_overrides = {
             key: val for key, val in overrides.items()
-            if key not in {"llm", "memobase", "transports", "password", "api_key", "token"}
+            if key not in {"llm", "honcho", "transports", "password", "api_key", "token"}
         }
         _deep_merge(config, non_secret_overrides)
 

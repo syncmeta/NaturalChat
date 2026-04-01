@@ -121,11 +121,11 @@ i18n() {
         en:no_services) echo "No Docker services to deploy." ;;
         zh:no_services) echo "无需部署 Docker 服务。" ;;
 
-        # ── Memobase ──
-        en:memobase_docker) echo "Deploy locally via Docker (free, recommended)" ;;
-        zh:memobase_docker) echo "通过 Docker 本地部署（免费，推荐）" ;;
-        en:memobase_remote) echo "Connect to an existing Memobase server" ;;
-        zh:memobase_remote) echo "连接到已有的 Memobase 服务器" ;;
+        # ── Honcho ──
+        en:honcho_docker) echo "Deploy locally via Docker (free, recommended)" ;;
+        zh:honcho_docker) echo "通过 Docker 本地部署（免费，推荐）" ;;
+        en:honcho_remote) echo "Connect to an existing Honcho server" ;;
+        zh:honcho_remote) echo "连接到已有的 Honcho 服务器" ;;
 
         # ── Crawl4AI ──
         en:crawl4ai_docker) echo "Deploy locally via Docker (free, recommended)" ;;
@@ -529,14 +529,11 @@ if [[ "$LANG_CHOICE" == "2" ]]; then
     LANG_UI="zh"
 fi
 
-# ── Network accessibility check ──────────────────────────────────────────────
-
-NETWORK_GLOBAL=true
-if curl -sf --max-time 5 "https://www.google.com" &>/dev/null; then
-    NETWORK_GLOBAL=true
-else
-    NETWORK_GLOBAL=false
-fi
+# ── Network accessibility check (background, non-blocking) ─────────────────
+_NET_CHECK_FILE="$(mktemp)"
+echo "true" > "$_NET_CHECK_FILE"
+( curl -sf --max-time 5 "https://www.google.com" &>/dev/null || echo "false" > "$_NET_CHECK_FILE" ) &
+_NET_CHECK_PID=$!
 
 echo ""
 
@@ -714,11 +711,11 @@ fi
 # ═════════════════════════════════════════════════════════════════════════════
 
 if step_done 2; then
-    USE_MEMOBASE="$(load_var USE_MEMOBASE false)"
-    MEMOBASE_MODE="$(load_var MEMOBASE_MODE "")"
-    MEMOBASE_URL="$(load_var MEMOBASE_URL "")"
-    MEMOBASE_KEY="$(load_var MEMOBASE_KEY "")"
-    MEMOBASE_PORT="$(load_var MEMOBASE_PORT "")"
+    USE_HONCHO="$(load_var USE_HONCHO false)"
+    HONCHO_MODE="$(load_var HONCHO_MODE "")"
+    HONCHO_URL="$(load_var HONCHO_URL "")"
+    HONCHO_KEY="$(load_var HONCHO_KEY "")"
+    HONCHO_PORT="$(load_var HONCHO_PORT "")"
     USE_CRAWL4AI="$(load_var USE_CRAWL4AI false)"
     CRAWL4AI_MODE="$(load_var CRAWL4AI_MODE "")"
     CRAWL4AI_URL="$(load_var CRAWL4AI_URL "")"
@@ -766,14 +763,14 @@ else
     MODEL="${DEFAULT_MODEL:-openrouter/auto}"
     API_KEY="${DEFAULT_API_KEY:-}"
 
-    # Platforms — default: Matrix via Docker Conduit
+    # Platforms — default: none (user picks during install)
     TG_ENABLED=false;  TG_TOKEN=""
-    MATRIX_ENABLED=true; MATRIX_HOMESERVER=""; MATRIX_USER_ID=""
+    MATRIX_ENABLED=false; MATRIX_HOMESERVER=""; MATRIX_USER_ID=""
     MATRIX_ACCESS_TOKEN=""; MATRIX_PASSWORD=""
     FEISHU_ENABLED=false; FEISHU_APP_ID=""; FEISHU_APP_SECRET=""; FEISHU_PORT=9000
     XMPP_ENABLED=false; XMPP_JID=""; XMPP_PASSWORD=""; XMPP_HOST=""; XMPP_PORT=5222
 
-    NEEDS_CONDUIT=true
+    NEEDS_CONDUIT=false
     CONDUIT_PORT="${DEFAULT_CONDUIT_PORT:-$(random_port)}"
     CONDUIT_FED_PORT="$(random_port)"
     CONDUIT_SERVER_NAME="localhost"
@@ -782,8 +779,8 @@ else
     MATRIX_HOMESERVER="http://127.0.0.1:$CONDUIT_PORT"
 
     # Components
-    USE_MEMOBASE=true; MEMOBASE_MODE="docker"; MEMOBASE_PORT="$(random_port)"
-    MEMOBASE_URL="http://127.0.0.1:$MEMOBASE_PORT"; MEMOBASE_KEY="$(random_chars 32)"
+    USE_HONCHO=true; HONCHO_MODE="docker"; HONCHO_PORT="$(random_port)"
+    HONCHO_URL="http://127.0.0.1:$HONCHO_PORT"; HONCHO_KEY="$(random_chars 32)"
     USE_CRAWL4AI=true; CRAWL4AI_MODE="docker"; CRAWL4AI_PORT="$(random_port)"
     CRAWL4AI_URL="http://localhost:$CRAWL4AI_PORT"; CRAWL4AI_KEY=""
     SERPER_KEY=""
@@ -815,7 +812,7 @@ else
         if [[ "$RSSHUB_MODE" == "docker" ]]; then parts+=("RSSHub (Docker)")
         elif [[ -n "$RSSHUB_URL" ]]; then parts+=("RSSHub ($RSSHUB_URL)")
         fi
-        [[ "$USE_MEMOBASE" == "true" ]] && parts+=("Memobase")
+        [[ "$USE_HONCHO" == "true" ]] && parts+=("Honcho")
         [[ "$USE_CRAWL4AI" == "true" ]] && parts+=("Crawl4AI")
         [[ -n "$SERPER_KEY" ]] && parts+=("Serper")
         if (( ${#parts[@]} == 0 )); then
@@ -998,10 +995,10 @@ else
                 "$(i18n access_open)" "$(i18n access_approval)" "$(i18n access_private)")"
             case "$c" in 1) ACCESS_MODE="open" ;; 2) ACCESS_MODE="approval" ;; 3) ACCESS_MODE="private" ;; esac
             ;;
-        7)  # Components (Memobase, Crawl4AI, RSSHub, Serper)
+        7)  # Components (Honcho, Crawl4AI, RSSHub, Serper)
             comp_sel="$(ask_multi_select "$(i18n cfg_comp_select)" \
                 "RSSHub (Docker):$( [[ "$RSSHUB_MODE" == "docker" ]] && echo 1 || echo 0 )" \
-                "Memobase:$( [[ "$USE_MEMOBASE" == "true" ]] && echo 1 || echo 0 )" \
+                "Honcho:$( [[ "$USE_HONCHO" == "true" ]] && echo 1 || echo 0 )" \
                 "Crawl4AI:$( [[ "$USE_CRAWL4AI" == "true" ]] && echo 1 || echo 0 )" \
                 "Serper (Google):$( [[ -n "$SERPER_KEY" ]] && echo 1 || echo 0 )")"
 
@@ -1014,21 +1011,21 @@ else
                 RSSHUB_MODE=""; RSSHUB_URL=""; RSSHUB_PORT=""
             fi
 
-            # Memobase
+            # Honcho
             if [[ " $comp_sel " == *" 2 "* ]]; then
-                USE_MEMOBASE=true
-                if [[ "$MEMOBASE_MODE" != "remote" ]]; then
-                    MEMOBASE_MODE="docker"
-                    [[ -z "$MEMOBASE_PORT" ]] && MEMOBASE_PORT="$(random_port)"
-                    MEMOBASE_URL="http://127.0.0.1:$MEMOBASE_PORT"
-                    [[ -z "$MEMOBASE_KEY" ]] && MEMOBASE_KEY="$(random_chars 32)"
-                elif [[ -z "$MEMOBASE_URL" ]]; then
-                    MEMOBASE_MODE="remote"
-                    MEMOBASE_URL="$(ask "Memobase URL" "http://localhost:8019")"
-                    MEMOBASE_KEY="$(ask "Memobase API key" "secret")"
+                USE_HONCHO=true
+                if [[ "$HONCHO_MODE" != "remote" ]]; then
+                    HONCHO_MODE="docker"
+                    [[ -z "$HONCHO_PORT" ]] && HONCHO_PORT="$(random_port)"
+                    HONCHO_URL="http://127.0.0.1:$HONCHO_PORT"
+                    [[ -z "$HONCHO_KEY" ]] && HONCHO_KEY="$(random_chars 32)"
+                elif [[ -z "$HONCHO_URL" ]]; then
+                    HONCHO_MODE="remote"
+                    HONCHO_URL="$(ask "Honcho URL" "http://localhost:8080")"
+                    HONCHO_KEY="$(ask "Honcho API key" "secret")"
                 fi
             else
-                USE_MEMOBASE=false; MEMOBASE_MODE=""; MEMOBASE_URL=""; MEMOBASE_KEY=""; MEMOBASE_PORT=""
+                USE_HONCHO=false; HONCHO_MODE=""; HONCHO_URL=""; HONCHO_KEY=""; HONCHO_PORT=""
             fi
 
             # Crawl4AI
@@ -1111,7 +1108,7 @@ else
     fi
 
     # ── Save all state ──
-    for v in USE_MEMOBASE MEMOBASE_MODE MEMOBASE_URL MEMOBASE_KEY MEMOBASE_PORT \
+    for v in USE_HONCHO HONCHO_MODE HONCHO_URL HONCHO_KEY HONCHO_PORT \
              USE_CRAWL4AI CRAWL4AI_MODE CRAWL4AI_URL CRAWL4AI_KEY CRAWL4AI_PORT \
              RSSHUB_MODE RSSHUB_URL RSSHUB_PORT SERPER_KEY \
              TG_ENABLED TG_TOKEN MATRIX_ENABLED MATRIX_HOMESERVER MATRIX_USER_ID \
@@ -1134,11 +1131,11 @@ printf "${PURPLE}$(i18n installing)${NC}\n"
 echo ""
 
 # ── Reload saved vars ──
-USE_MEMOBASE="$(load_var USE_MEMOBASE false)"
-MEMOBASE_MODE="$(load_var MEMOBASE_MODE "")"
-MEMOBASE_URL="$(load_var MEMOBASE_URL "")"
-MEMOBASE_KEY="$(load_var MEMOBASE_KEY "")"
-MEMOBASE_PORT="$(load_var MEMOBASE_PORT "")"
+USE_HONCHO="$(load_var USE_HONCHO false)"
+HONCHO_MODE="$(load_var HONCHO_MODE "")"
+HONCHO_URL="$(load_var HONCHO_URL "")"
+HONCHO_KEY="$(load_var HONCHO_KEY "")"
+HONCHO_PORT="$(load_var HONCHO_PORT "")"
 USE_CRAWL4AI="$(load_var USE_CRAWL4AI false)"
 CRAWL4AI_MODE="$(load_var CRAWL4AI_MODE "")"
 CRAWL4AI_URL="$(load_var CRAWL4AI_URL "")"
@@ -1183,6 +1180,11 @@ BOT_DIR="$BOTS_DIR/$BOT_NAME"
 # Global config directory
 mkdir -p "$BASE_DIR/config"
 
+# Collect background network check result
+wait "$_NET_CHECK_PID" 2>/dev/null
+NETWORK_GLOBAL="$(cat "$_NET_CHECK_FILE")"
+rm -f "$_NET_CHECK_FILE"
+
 # config/config.yaml (non-sensitive global config)
 GLOBAL_CONFIG="$BASE_DIR/config/config.yaml"
 cat > "$GLOBAL_CONFIG" <<YAML
@@ -1210,12 +1212,9 @@ cat > "$GLOBAL_SECRETS" <<YAML
 # Google 搜索 API（留空则使用 DuckDuckGo）/ Google Search API (leave empty to use DuckDuckGo)
 serper_api_key: "$SERPER_KEY"
 
-# Memobase 配置（Docker 部署时自动生成）/ Memobase config (auto-generated for Docker deployment)
-memobase:
+# Honcho 配置（Docker 部署时自动生成）/ Honcho config (auto-generated for Docker deployment)
+honcho:
   api_key: ""
-  llm_api_key: ""
-  llm_base_url: ""
-  llm_model: ""
 YAML
 chmod 600 "$GLOBAL_SECRETS"
 
@@ -1225,141 +1224,92 @@ rm -f "$BASE_DIR/config.example.yaml" "$BASE_DIR/.env.example"
 # Bot directory
 mkdir -p "$BOT_DIR/skills" "$BOT_DIR/bot_data"
 
-# ── config.yaml ──
+# ── config.yaml & secrets.yaml — copy from template, patch user values ──
+# Locate template: try BASE_DIR first, fall back to script's source repo
+SCRIPT_SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." 2>/dev/null && pwd)"
+if [[ -d "$BASE_DIR/bots/_template" ]]; then
+    TEMPLATE_DIR="$BASE_DIR/bots/_template"
+elif [[ -d "$SCRIPT_SOURCE_DIR/bots/_template" ]]; then
+    TEMPLATE_DIR="$SCRIPT_SOURCE_DIR/bots/_template"
+else
+    die "Cannot find bots/_template directory. Please run from the NaturalChat repo."
+fi
 CONFIG_FILE="$BOT_DIR/config.yaml"
-{
-    echo "# ── Transports ──"
-    echo "transports:"
-    echo "  web:"
-    echo "    enabled: true"
-    echo ""
-
-    if [[ "$TG_ENABLED" == "true" ]]; then
-        echo "  telegram:"
-        echo "    enabled: true"
-    fi
-    if [[ "$MATRIX_ENABLED" == "true" ]]; then
-        echo "  matrix:"
-        echo "    enabled: true"
-        echo "    homeserver_url: \"$MATRIX_HOMESERVER\""
-        echo "    user_id: \"$MATRIX_USER_ID\""
-    fi
-    if [[ "$FEISHU_ENABLED" == "true" ]]; then
-        echo "  feishu:"
-        echo "    enabled: true"
-        echo "    app_id: \"$FEISHU_APP_ID\""
-        echo "    webhook_port: $FEISHU_PORT"
-    fi
-    if [[ "$XMPP_ENABLED" == "true" ]]; then
-        echo "  xmpp:"
-        echo "    enabled: true"
-        echo "    jid: \"$XMPP_JID\""
-        echo "    xmpp_host: \"$XMPP_HOST\""
-        echo "    xmpp_port: $XMPP_PORT"
-    fi
-
-    cat <<YAML
-
-# ── Timing ──
-msg_wait_initial: 2.5
-msg_wait_after_typing_stop: 5.0
-typing_hard_timeout: 10.0
-reflection_delay: 30
-
-# ── LLM ──
-llm:
-  base_url: "$BASE_URL"
-  model: "$MODEL"
-  max_history_tokens: 4000
-
-token_budget:
-  default_score: 50
-
-# ── Surfing (disabled by default) ──
-surfing:
-  enabled: false
-YAML
-
-    # Crawl4AI → maps to firecrawl config key (compatible API)
-    if [[ "$USE_CRAWL4AI" == "true" ]]; then
-        cat <<YAML
-
-# ── 网页抓取 / Web Scraping (Crawl4AI) ──
-firecrawl:
-  url: "$CRAWL4AI_URL"
-YAML
-    fi
-
-    # Memobase
-    if [[ "$USE_MEMOBASE" == "true" ]]; then
-        cat <<YAML
-
-# ── Memobase ──
-memobase:
-  url: "${MEMOBASE_URL:-http://localhost:8019}"
-YAML
-    fi
-
-} > "$CONFIG_FILE"
-
-# ── secrets.yaml ──
 SECRETS_FILE="$BOT_DIR/secrets.yaml"
-{
-    echo "# Sensitive credentials — DO NOT commit"
-    echo "llm:"
-    echo "  api_key: \"$API_KEY\""
 
-    # Only write transports: if there are platform secrets to put under it
-    HAS_TRANSPORT_SECRETS=false
-    if [[ "$TG_ENABLED" == "true" ]] || \
-       { [[ "$MATRIX_ENABLED" == "true" ]] && [[ -n "$MATRIX_ACCESS_TOKEN$MATRIX_PASSWORD" ]]; } || \
-       [[ "$FEISHU_ENABLED" == "true" ]] || [[ "$XMPP_ENABLED" == "true" ]]; then
-        HAS_TRANSPORT_SECRETS=true
-    fi
+# Helper: cross-platform in-place sed
+_sed_i() { local e="$1" f="$2"; sed "$e" "$f" > "$f.tmp" && mv "$f.tmp" "$f"; }
 
-    if [[ "$HAS_TRANSPORT_SECRETS" == "true" ]]; then
-        echo ""
-        echo "transports:"
-        if [[ "$TG_ENABLED" == "true" ]]; then
-            echo "  telegram:"
-            echo "    enabled: true"
-            echo "    token: \"$TG_TOKEN\""
-        fi
-        if [[ "$MATRIX_ENABLED" == "true" ]] && [[ -n "$MATRIX_ACCESS_TOKEN$MATRIX_PASSWORD" ]]; then
-            echo "  matrix:"
-            echo "    enabled: true"
-            if [[ -n "$MATRIX_ACCESS_TOKEN" ]]; then
-                echo "    access_token: \"$MATRIX_ACCESS_TOKEN\""
-            fi
-            if [[ -n "$MATRIX_PASSWORD" ]]; then
-                echo "    password: \"$MATRIX_PASSWORD\""
-            fi
-        fi
-        if [[ "$FEISHU_ENABLED" == "true" ]]; then
-            echo "  feishu:"
-            echo "    enabled: true"
-            echo "    app_secret: \"$FEISHU_APP_SECRET\""
-        fi
-        if [[ "$XMPP_ENABLED" == "true" ]]; then
-            echo "  xmpp:"
-            echo "    enabled: true"
-            echo "    password: \"$XMPP_PASSWORD\""
-        fi
-    fi
-
-    if [[ "$USE_CRAWL4AI" == "true" ]] && [[ -n "$CRAWL4AI_KEY" ]]; then
-        echo ""
-        echo "crawl4ai:"
-        echo "  api_key: \"$CRAWL4AI_KEY\""
-    fi
-
-    if [[ "$USE_MEMOBASE" == "true" ]]; then
-        echo ""
-        echo "memobase:"
-        echo "  api_key: \"${MEMOBASE_KEY:-secret}\""
-    fi
-} > "$SECRETS_FILE"
+cp "$TEMPLATE_DIR/config.yaml" "$CONFIG_FILE"
+cp "$TEMPLATE_DIR/secrets.yaml" "$SECRETS_FILE"
 chmod 600 "$SECRETS_FILE"
+
+# — Patch config.yaml —
+
+# LLM
+_sed_i "s|base_url: \".*\"|base_url: \"$BASE_URL\"|" "$CONFIG_FILE"
+_sed_i "s|model: \".*\"|model: \"$MODEL\"|" "$CONFIG_FILE"
+
+# Platforms — enable selected ones and fill values
+if [[ "$MATRIX_ENABLED" == "true" ]]; then
+    _sed_i '/^  matrix:/,/^  [a-z]/{s/enabled: false/enabled: true/;}' "$CONFIG_FILE"
+    _sed_i "s|homeserver_url: \".*\"|homeserver_url: \"$MATRIX_HOMESERVER\"|" "$CONFIG_FILE"
+    _sed_i "s|user_id: \".*\"|user_id: \"$MATRIX_USER_ID\"|" "$CONFIG_FILE"
+fi
+if [[ "$TG_ENABLED" == "true" ]]; then
+    _sed_i '/^  telegram:/,/^  [a-z]/{s/enabled: false/enabled: true/;}' "$CONFIG_FILE"
+fi
+if [[ "$FEISHU_ENABLED" == "true" ]]; then
+    _sed_i '/^  feishu:/,/^$/{ s/enabled: false/enabled: true/; }' "$CONFIG_FILE"
+    _sed_i "s|app_id: \".*\"|app_id: \"$FEISHU_APP_ID\"|" "$CONFIG_FILE"
+    _sed_i "s|webhook_port: .*|webhook_port: $FEISHU_PORT|" "$CONFIG_FILE"
+fi
+if [[ "$XMPP_ENABLED" == "true" ]]; then
+    _sed_i '/^  xmpp:/,/^  [a-z]/{s/enabled: false/enabled: true/;}' "$CONFIG_FILE"
+    _sed_i "s|jid: \".*\"|jid: \"$XMPP_JID\"|" "$CONFIG_FILE"
+    _sed_i "s|xmpp_host: \".*\"|xmpp_host: \"$XMPP_HOST\"|" "$CONFIG_FILE"
+    _sed_i "s|xmpp_port: 5222|xmpp_port: $XMPP_PORT|" "$CONFIG_FILE"
+fi
+
+# Honcho
+if [[ "$USE_HONCHO" == "true" ]] && [[ -n "$HONCHO_URL" ]]; then
+    _sed_i '/^honcho:/,/^[a-z]/{s|url: ""|url: "'"${HONCHO_URL}"'"|}' "$CONFIG_FILE"
+fi
+
+# Crawl4AI (maps to firecrawl config key)
+if [[ "$USE_CRAWL4AI" == "true" ]] && [[ -n "$CRAWL4AI_URL" ]]; then
+    _sed_i '/^firecrawl:/,/^[a-z]/{s|url: ""|url: "'"${CRAWL4AI_URL}"'"|}' "$CONFIG_FILE"
+fi
+
+# — Patch secrets.yaml —
+
+# LLM API key (only the one under llm: section)
+_sed_i '/^llm:/,/^[a-z]/{s|api_key: ""|api_key: "'"$API_KEY"'"|}' "$SECRETS_FILE"
+
+# Transport secrets
+if [[ "$MATRIX_ENABLED" == "true" ]]; then
+    [[ -n "$MATRIX_ACCESS_TOKEN" ]] && _sed_i "s|access_token: \".*\"|access_token: \"$MATRIX_ACCESS_TOKEN\"|" "$SECRETS_FILE"
+    [[ -n "$MATRIX_PASSWORD" ]] && _sed_i '/^  matrix:/,/^  [a-z]/{s|password: ""|password: "'"$MATRIX_PASSWORD"'"|}' "$SECRETS_FILE"
+fi
+if [[ "$TG_ENABLED" == "true" ]]; then
+    _sed_i "s|token: \".*\"|token: \"$TG_TOKEN\"|" "$SECRETS_FILE"
+fi
+if [[ "$FEISHU_ENABLED" == "true" ]]; then
+    _sed_i "s|app_secret: \".*\"|app_secret: \"$FEISHU_APP_SECRET\"|" "$SECRETS_FILE"
+fi
+if [[ "$XMPP_ENABLED" == "true" ]]; then
+    _sed_i '/^  xmpp:/,/^[a-z]/{s|password: ""|password: "'"$XMPP_PASSWORD"'"|}' "$SECRETS_FILE"
+fi
+
+# Honcho key
+if [[ "$USE_HONCHO" == "true" ]]; then
+    _sed_i '/^honcho:/,/^[a-z]/{s|api_key: ""|api_key: "'"${HONCHO_KEY:-secret}"'"|}' "$SECRETS_FILE"
+fi
+
+# Crawl4AI key
+if [[ "$USE_CRAWL4AI" == "true" ]] && [[ -n "$CRAWL4AI_KEY" ]]; then
+    _sed_i '/^firecrawl:/,/^[a-z]/{s|api_key: ""|api_key: "'"$CRAWL4AI_KEY"'"|}' "$SECRETS_FILE"
+fi
 
 # ── Prompts ──
 if [[ ! -d "$BOT_DIR/prompts" ]]; then
@@ -1435,14 +1385,15 @@ ENV_FILE="$BASE_DIR/.env"
 {
     echo "# NaturalChat — auto-generated by install.sh"
     echo "PANEL_PORT=${PANEL_PORT:-8080}"
-    if [[ "$USE_MEMOBASE" == "true" ]] && [[ "$MEMOBASE_MODE" == "docker" ]]; then
-        echo "MEMOBASE_DB_PASSWORD=memobase"
-        echo "MEMOBASE_REDIS_PASSWORD=memobase"
-        echo "MEMOBASE_ACCESS_TOKEN=${MEMOBASE_KEY}"
-        echo "MEMOBASE_PROJECT_ID=naturalchat"
+    if [[ "$USE_HONCHO" == "true" ]] && [[ "$HONCHO_MODE" == "docker" ]]; then
+        echo "HONCHO_DB_PASSWORD=honcho"
+        echo "HONCHO_API_KEY=${HONCHO_KEY}"
+        echo "HONCHO_LLM_BASE_URL=${BASE_URL}"
+        echo "HONCHO_LLM_API_KEY=${API_KEY}"
+        echo "HONCHO_LLM_MODEL=${MODEL}"
     fi
-    if [[ -n "${MEMOBASE_PORT:-}" ]]; then
-        echo "MEMOBASE_PORT=$MEMOBASE_PORT"
+    if [[ -n "${HONCHO_PORT:-}" ]]; then
+        echo "HONCHO_PORT=$HONCHO_PORT"
     fi
     if [[ "$NEEDS_CONDUIT" == "true" ]]; then
         [[ -z "${CONDUIT_PORT:-}" ]] && CONDUIT_PORT=6167
@@ -1469,32 +1420,8 @@ fi
 # Save compose project name for later use (uninstall, service restart, etc.)
 save_var COMPOSE_PROJECT "${COMPOSE_PROJECT:-naturalchat}"
 
-# ── Memobase config (LLM settings for memobase server) ──
-MEMOBASE_CONFIG="$BASE_DIR/config/memobase.yaml"
-# Docker creates a directory if mount target doesn't exist as a file — remove it
-if [[ -d "$MEMOBASE_CONFIG" ]]; then
-    rm -rf "$MEMOBASE_CONFIG"
-fi
-if [[ "$USE_MEMOBASE" == "true" ]] && [[ "$MEMOBASE_MODE" == "docker" ]] && [[ ! -f "$MEMOBASE_CONFIG" ]]; then
-    {
-        echo "# Memobase LLM configuration"
-        echo "# Uses the same LLM API key as the bot"
-        echo "llm_api_key: \"${API_KEY}\""
-        if [[ -n "${BASE_URL:-}" ]]; then
-            echo "llm_base_url: \"${BASE_URL}\""
-        fi
-        if [[ -n "${MODEL:-}" ]]; then
-            echo "best_llm_model: \"${MODEL}\""
-            echo "thinking_llm_model: \"${MODEL}\""
-            echo "summary_llm_model: \"${MODEL}\""
-        fi
-        echo ""
-        echo "# Set to false to disable embedding (saves resources)"
-        echo "enable_event_embedding: false"
-    } > "$MEMOBASE_CONFIG"
-    chmod 600 "$MEMOBASE_CONFIG"
-
-    # Also update config/secrets.yaml with memobase LLM settings
+# ── Honcho secrets (update global secrets when Docker mode) ──
+if [[ "$USE_HONCHO" == "true" ]] && [[ "$HONCHO_MODE" == "docker" ]]; then
     cat > "$GLOBAL_SECRETS" <<YAML
 # NaturalChat 全局密钥 / Global Secrets
 # ⚠️ 请勿提交到版本控制 / DO NOT commit to version control
@@ -1502,25 +1429,22 @@ if [[ "$USE_MEMOBASE" == "true" ]] && [[ "$MEMOBASE_MODE" == "docker" ]] && [[ !
 # Google 搜索 API（留空则使用 DuckDuckGo）/ Google Search API (leave empty to use DuckDuckGo)
 serper_api_key: "$SERPER_KEY"
 
-# Memobase 配置 / Memobase config
-memobase:
-  api_key: "${MEMOBASE_KEY:-}"
-  llm_api_key: "${API_KEY}"
-  llm_base_url: "${BASE_URL}"
-  llm_model: "${MODEL}"
+# Honcho 配置 / Honcho config
+honcho:
+  api_key: "${HONCHO_KEY:-}"
 YAML
     chmod 600 "$GLOBAL_SECRETS"
 fi
 
-# Remove old memobase-config.yaml at root if it exists
+# Clean up legacy config files
 rm -f "$BASE_DIR/memobase-config.yaml"
 
 # ── Web panel credentials (random port + random username) ──
 PANEL_CONFIG="$BASE_DIR/web_panel.yaml"
 if [[ ! -f "$PANEL_CONFIG" ]]; then
-    PANEL_PORT="$(random_port)"
-    PANEL_USER="$(random_username)"
-    PANEL_PASS="$(random_chars 12)"
+    PANEL_PORT="${DEFAULT_PANEL_PORT:-$(random_port)}"
+    PANEL_USER="${DEFAULT_PANEL_USER:-$(random_username)}"
+    PANEL_PASS="${DEFAULT_PANEL_PASS:-$(random_chars 12)}"
     cat > "$PANEL_CONFIG" <<YAML
 # NaturalChat Web Panel
 # Access at http://localhost:$PANEL_PORT after starting the bot
@@ -1547,7 +1471,7 @@ COMPOSE_PROJECT="$(load_var COMPOSE_PROJECT "")"
 
 DOCKER_PROFILES=("bot")
 [[ "$NEEDS_CONDUIT" == "true" ]] && DOCKER_PROFILES+=("matrix")
-[[ "$USE_MEMOBASE" == "true" ]] && [[ "$MEMOBASE_MODE" == "docker" ]] && DOCKER_PROFILES+=("memobase")
+[[ "$USE_HONCHO" == "true" ]] && [[ "$HONCHO_MODE" == "docker" ]] && DOCKER_PROFILES+=("honcho")
 [[ "$USE_CRAWL4AI" == "true" ]] && [[ "$CRAWL4AI_MODE" == "docker" ]] && DOCKER_PROFILES+=("crawl4ai")
 [[ "$RSSHUB_MODE" == "docker" ]] && DOCKER_PROFILES+=("rsshub")
 

@@ -169,14 +169,7 @@ class LLMAgent:
                 history.insert(0, {"role": "system", "content": prior_summary})
             return
 
-        # Send removed messages to Memobase before discarding
-        try:
-            for m in removed:
-                if m.get("role") == "user":
-                    # Find next assistant reply
-                    pass  # Memobase already received these via insert_chat
-        except Exception:
-            pass
+        # Honcho already received these messages via insert_chat
 
         removed_text = "\n".join(
             f"{m['role'].upper()}: {m.get('content', '')[:400]}" for m in removed
@@ -432,7 +425,7 @@ class LLMAgent:
         system = self.system_prompt
 
         if self.memory_manager:
-            # Get user context from Memobase
+            # Get user context from Honcho
             try:
                 user_ctx = self.memory_manager.get_user_context(contact_jid)
                 if user_ctx:

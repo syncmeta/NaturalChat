@@ -8,8 +8,9 @@
 #   bash nctl.sh stop         Stop all services
 #   bash nctl.sh restart      Restart all services
 #   bash nctl.sh info         Show connection details
-#   bash nctl.sh logs [svc]   View logs (bot, conduit, memobase-api, etc.)
+#   bash nctl.sh logs [svc]   View logs (bot, conduit, honcho-api, etc.)
 #   bash nctl.sh config       Edit configuration
+#   bash nctl.sh update       Pull latest code and restart
 #   bash nctl.sh matrix       Matrix account management
 
 set -euo pipefail
@@ -82,8 +83,14 @@ i18n() {
         en:menu_info) echo "Info — Show connection details" ;;
         zh:menu_info) echo "信息 — 显示连接详情" ;;
         en:menu_exit) echo "Exit" ;; zh:menu_exit) echo "退出" ;;
-        en:usage_hint) echo "Tip: bash nctl.sh [command]  e.g. status / start / stop / restart / logs / config / info" ;;
-        zh:usage_hint) echo "提示：bash nctl.sh [命令]  如 status / start / stop / restart / logs / config / info" ;;
+        en:menu_update) echo "Update — Pull latest code and restart" ;;
+        zh:menu_update) echo "更新 — 拉取最新代码并重启" ;;
+        en:updating) echo "Pulling latest code from GitHub..." ;; zh:updating) echo "正在从 GitHub 拉取最新代码..." ;;
+        en:update_ok) echo "Code updated. Restarting services..." ;; zh:update_ok) echo "代码已更新。正在重启服务..." ;;
+        en:update_done) echo "Update complete" ;; zh:update_done) echo "更新完成" ;;
+        en:update_pull_failed) echo "git pull failed. Check network or repo status." ;; zh:update_pull_failed) echo "git pull 失败，请检查网络或仓库状态。" ;;
+        en:usage_hint) echo "Tip: bash nctl.sh [command]  e.g. status / start / stop / restart / update / logs / config / info" ;;
+        zh:usage_hint) echo "提示：bash nctl.sh [命令]  如 status / start / stop / restart / update / logs / config / info" ;;
 
         # ── Status ──
         en:status_title) echo "System Status" ;; zh:status_title) echo "系统状态" ;;
@@ -317,7 +324,7 @@ COMPOSE_PROJECT="$(load_env COMPOSE_PROJECT_NAME naturalchat)"
 PROJECT_FLAG="-p $COMPOSE_PROJECT"
 CONDUIT_PORT="$(load_env CONDUIT_PORT 6167)"
 CONDUIT_SERVER_NAME="$(load_env CONDUIT_SERVER_NAME localhost)"
-MEMOBASE_PORT="$(load_env MEMOBASE_PORT 8019)"
+HONCHO_PORT="$(load_env HONCHO_PORT 8080)"
 CRAWL4AI_PORT="$(load_env CRAWL4AI_PORT 11235)"
 RSSHUB_PORT="$(load_env RSSHUB_PORT 1200)"
 
@@ -337,7 +344,7 @@ get_active_profiles() {
     local running
     running="$(docker compose $PROJECT_FLAG --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps --status running --format '{{.Name}}' 2>/dev/null)" || true
     echo "$running" | grep -q "conduit" && profiles="$profiles --profile matrix"
-    echo "$running" | grep -q "memobase" && profiles="$profiles --profile memobase"
+    echo "$running" | grep -q "honcho" && profiles="$profiles --profile honcho"
     echo "$running" | grep -q "crawl4ai" && profiles="$profiles --profile crawl4ai"
     echo "$running" | grep -q "rsshub" && profiles="$profiles --profile rsshub"
     echo "$running" | grep -q "\-bot-" && profiles="$profiles --profile bot"
@@ -361,8 +368,8 @@ get_configured_profiles() {
     if echo "$all_containers" | grep -q "conduit"; then
         profiles="$profiles --profile matrix"
     fi
-    if echo "$all_containers" | grep -q "memobase"; then
-        profiles="$profiles --profile memobase"
+    if echo "$all_containers" | grep -q "honcho"; then
+        profiles="$profiles --profile honcho"
     fi
     if echo "$all_containers" | grep -q "crawl4ai"; then
         profiles="$profiles --profile crawl4ai"
@@ -374,7 +381,7 @@ get_configured_profiles() {
     # Method 2: Fallback to .env if no containers exist
     if [[ -z "$profiles" ]]; then
         [[ -n "$(load_env CONDUIT_PORT "")" ]] && profiles="$profiles --profile matrix"
-        [[ -n "$(load_env MEMOBASE_DB_PASSWORD "")" ]] && profiles="$profiles --profile memobase"
+        [[ -n "$(load_env HONCHO_DB_PASSWORD "")" ]] && profiles="$profiles --profile honcho"
         [[ -n "$(load_env CRAWL4AI_PORT "")" ]] && profiles="$profiles --profile crawl4ai"
         [[ -n "$(load_env RSSHUB_PORT "")" ]] && profiles="$profiles --profile rsshub"
         # Default: include bot profile if Dockerfile exists
@@ -478,9 +485,9 @@ cmd_status() {
         echo "    Matrix (Conduit): http://127.0.0.1:${p:-$CONDUIT_PORT}"
         has_endpoint=true
     fi
-    if echo "$running_info" | grep -q "memobase-api"; then
-        local p; p="$(_get_host_port memobase-api 8000)"
-        echo "    Memobase API:     http://127.0.0.1:${p:-$MEMOBASE_PORT}"
+    if echo "$running_info" | grep -q "honcho-api"; then
+        local p; p="$(_get_host_port honcho-api 8080)"
+        echo "    Honcho API:       http://127.0.0.1:${p:-$HONCHO_PORT}"
         has_endpoint=true
     fi
     if echo "$running_info" | grep -q "crawl4ai"; then
@@ -511,7 +518,7 @@ cmd_status() {
 
 _resolve_port_conflicts() {
     local changed=false
-    local port_vars=(CONDUIT_PORT PANEL_PORT MEMOBASE_PORT CRAWL4AI_PORT RSSHUB_PORT)
+    local port_vars=(CONDUIT_PORT PANEL_PORT HONCHO_PORT CRAWL4AI_PORT RSSHUB_PORT)
     for var in "${port_vars[@]}"; do
         local port="${!var:-}"
         [[ -z "$port" ]] && continue
@@ -581,6 +588,33 @@ cmd_restart() {
 
     echo ""
     ok "$(i18n restarted)"
+}
+
+# ── Update ───────────────────────────────────────────────────────────────────
+
+cmd_update() {
+    echo ""
+    info "$(i18n updating)"
+    echo ""
+
+    # Pull latest code
+    if ! git -C "$BASE_DIR" pull origin main 2>&1 | sed 's/^/    /'; then
+        echo ""
+        err "$(i18n update_pull_failed)"
+        return 1
+    fi
+
+    echo ""
+    info "$(i18n update_ok)"
+    echo ""
+
+    # Stop, rebuild, restart
+    dc_all stop 2>&1 | sed 's/^/    /'
+    _resolve_port_conflicts
+    dc_all up -d --build --force-recreate 2>&1 | sed 's/^/    /'
+
+    echo ""
+    ok "$(i18n update_done)"
 }
 
 # ── Info ─────────────────────────────────────────────────────────────────────
@@ -668,9 +702,9 @@ cmd_info() {
         echo "    Matrix (Conduit): http://127.0.0.1:${p:-$CONDUIT_PORT}"
         has_endpoint=true
     fi
-    if echo "$running_info" | grep -q "memobase-api"; then
-        local p; p="$(_get_host_port_info memobase-api 8000)"
-        echo "    Memobase API:     http://127.0.0.1:${p:-$MEMOBASE_PORT}"
+    if echo "$running_info" | grep -q "honcho-api"; then
+        local p; p="$(_get_host_port_info honcho-api 8080)"
+        echo "    Honcho API:       http://127.0.0.1:${p:-$HONCHO_PORT}"
         has_endpoint=true
     fi
     if echo "$running_info" | grep -q "crawl4ai"; then
@@ -1177,6 +1211,7 @@ if [[ $# -gt 0 ]]; then
         start)   cmd_start ;;
         stop)    cmd_stop ;;
         restart) cmd_restart ;;
+        update)  cmd_update ;;
         info)    cmd_info ;;
         logs)    shift; cmd_logs "$@" ;;
         config)  cmd_config ;;
@@ -1193,8 +1228,9 @@ if [[ $# -gt 0 ]]; then
             echo "    start      Start all services"
             echo "    stop       Stop all services"
             echo "    restart    Restart all services"
+            echo "    update     Pull latest code from GitHub and restart"
             echo "    info       Show connection details (URLs, credentials)"
-            echo "    logs [svc] View logs (optional: bot, conduit, memobase-api...)"
+            echo "    logs [svc] View logs (optional: bot, conduit, honcho-api...)"
             echo "    config     Edit configuration"
             echo "    matrix     Matrix account management"
             echo "    bots       Manage bot instances"
@@ -1240,6 +1276,7 @@ while true; do
     menu_items+=("$(i18n menu_start)")
     menu_items+=("$(i18n menu_stop)")
     menu_items+=("$(i18n menu_restart)")
+    menu_items+=("$(i18n menu_update)")
     menu_items+=("$(i18n menu_info)")
     menu_items+=("$(i18n menu_logs)")
     menu_items+=("$(i18n menu_config)")
@@ -1253,7 +1290,7 @@ while true; do
 
     # Map choice to action, accounting for optional Matrix menu
     local idx=$((choice - 1))
-    local actions=("status" "start" "stop" "restart" "info" "logs" "config")
+    local actions=("status" "start" "stop" "restart" "update" "info" "logs" "config")
     [[ "$has_matrix" == "true" ]] && actions+=("matrix")
     actions+=("bots" "exit")
 
@@ -1264,6 +1301,7 @@ while true; do
         start)   cmd_start; pause ;;
         stop)    cmd_stop; pause ;;
         restart) cmd_restart; pause ;;
+        update)  cmd_update; pause ;;
         info)    cmd_info; pause ;;
         logs)    cmd_logs ;;
         config)  cmd_config ;;

@@ -162,7 +162,7 @@ User → Transport (Matrix / Telegram / Feishu / XMPP / Web)
          ↓
        LLMAgent (LLM calls + skill execution)
          ↓
-       MemoryManager (Memobase long-term memory + local files)
+       MemoryManager (Honcho long-term memory + local files)
 ```
 
 The transport layer handles debounce, typing awareness, and command routing. Code execution skills auto-select the best available sandbox (Docker → bubblewrap → sandbox-exec → WSL2 → none).

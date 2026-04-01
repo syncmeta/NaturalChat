@@ -32,56 +32,124 @@ services:
       CONDUIT_ALLOW_REGISTRATION: "${CONDUIT_ALLOW_REGISTRATION:-true}"
     restart: unless-stopped
 
-  # Memobase memory system (optional)
-  # Usage: docker compose --profile memobase up
-  memobase-db:
-    image: pgvector/pgvector:pg15
-    profiles: ["memobase"]
+  # Honcho memory system (optional)
+  # Usage: docker compose --profile honcho up
+  honcho-db:
+    image: pgvector/pgvector:pg17
+    profiles: ["honcho"]
     environment:
-      POSTGRES_DB: memobase
-      POSTGRES_USER: memobase
-      POSTGRES_PASSWORD: "${MEMOBASE_DB_PASSWORD:-memobase}"
-      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_DB: honcho
+      POSTGRES_USER: honcho
+      POSTGRES_PASSWORD: "${HONCHO_DB_PASSWORD:-honcho}"
     volumes:
-      - memobase-pg:/var/lib/postgresql/data
+      - honcho-pg:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U memobase -d memobase"]
+      test: ["CMD-SHELL", "pg_isready -U honcho -d honcho"]
       interval: 5s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
-  memobase-redis:
-    image: redis:7.4
-    profiles: ["memobase"]
-    command: ["redis-server", "--requirepass", "${MEMOBASE_REDIS_PASSWORD:-memobase}"]
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${MEMOBASE_REDIS_PASSWORD:-memobase}", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
-  memobase-api:
-    image: ghcr.io/memodb-io/memobase:latest
-    platform: linux/amd64
-    profiles: ["memobase"]
+  honcho-migrate:
+    image: ghcr.io/plastic-labs/honcho:latest
+    profiles: ["honcho"]
     depends_on:
-      memobase-db:
+      honcho-db:
         condition: service_healthy
-      memobase-redis:
-        condition: service_healthy
-    ports:
-      - "${MEMOBASE_PORT:-8019}:8000"
+    command: ["alembic", "upgrade", "head"]
     environment:
-      DATABASE_URL: "postgresql://memobase:${MEMOBASE_DB_PASSWORD:-memobase}@memobase-db:5432/memobase"
-      REDIS_URL: "redis://:${MEMOBASE_REDIS_PASSWORD:-memobase}@memobase-redis:6379/0"
-      ACCESS_TOKEN: "${MEMOBASE_ACCESS_TOKEN:-secret}"
-      PROJECT_ID: "${MEMOBASE_PROJECT_ID:-naturalchat}"
+      DB_CONNECTION_URI: "postgresql+psycopg://honcho:${HONCHO_DB_PASSWORD:-honcho}@honcho-db:5432/honcho"
+    restart: "no"
+
+  honcho-api:
+    image: ghcr.io/plastic-labs/honcho:latest
+    profiles: ["honcho"]
+    depends_on:
+      honcho-db:
+        condition: service_healthy
+      honcho-migrate:
+        condition: service_completed_successfully
+    ports:
+      - "${HONCHO_PORT:-8080}:8000"
+    environment:
+      DB_CONNECTION_URI: "postgresql+psycopg://honcho:${HONCHO_DB_PASSWORD:-honcho}@honcho-db:5432/honcho"
+      AUTH_USE_AUTH: "false"
+      # Route all LLM tasks through OpenRouter (OpenAI-compatible)
+      LLM_OPENAI_BASE_URL: "${HONCHO_LLM_BASE_URL:-https://openrouter.ai/api/v1}"
+      LLM_OPENAI_API_KEY: "${HONCHO_LLM_API_KEY:-}"
+      LLM_EMBEDDING_PROVIDER: "openai"
+      DERIVER_PROVIDER: "openai"
+      DERIVER_MODEL: "${HONCHO_LLM_MODEL:-openrouter/auto}"
+      SUMMARY_PROVIDER: "openai"
+      SUMMARY_MODEL: "${HONCHO_LLM_MODEL:-openrouter/auto}"
+      DREAM_PROVIDER: "openai"
+      DREAM_MODEL: "${HONCHO_LLM_MODEL:-openrouter/auto}"
+      DIALECTIC_LEVELS__MINIMAL__PROVIDER: "openai"
+      DIALECTIC_LEVELS__MINIMAL__MODEL: "${HONCHO_LLM_MODEL:-openrouter/auto}"
+      DIALECTIC_LEVELS__MINIMAL__THINKING_BUDGET_TOKENS: "0"
+      DIALECTIC_LEVELS__MINIMAL__MAX_TOOL_ITERATIONS: "1"
+      DIALECTIC_LEVELS__LOW__PROVIDER: "openai"
+      DIALECTIC_LEVELS__LOW__MODEL: "${HONCHO_LLM_MODEL:-openrouter/auto}"
+      DIALECTIC_LEVELS__LOW__THINKING_BUDGET_TOKENS: "0"
+      DIALECTIC_LEVELS__LOW__MAX_TOOL_ITERATIONS: "5"
+      DIALECTIC_LEVELS__MEDIUM__PROVIDER: "openai"
+      DIALECTIC_LEVELS__MEDIUM__MODEL: "${HONCHO_LLM_MODEL:-openrouter/auto}"
+      DIALECTIC_LEVELS__MEDIUM__THINKING_BUDGET_TOKENS: "1024"
+      DIALECTIC_LEVELS__MEDIUM__MAX_TOOL_ITERATIONS: "2"
+      DIALECTIC_LEVELS__HIGH__PROVIDER: "openai"
+      DIALECTIC_LEVELS__HIGH__MODEL: "${HONCHO_LLM_MODEL:-openrouter/auto}"
+      DIALECTIC_LEVELS__HIGH__THINKING_BUDGET_TOKENS: "1024"
+      DIALECTIC_LEVELS__HIGH__MAX_TOOL_ITERATIONS: "4"
+      DIALECTIC_LEVELS__MAX__PROVIDER: "openai"
+      DIALECTIC_LEVELS__MAX__MODEL: "${HONCHO_LLM_MODEL:-openrouter/auto}"
+      DIALECTIC_LEVELS__MAX__THINKING_BUDGET_TOKENS: "2048"
+      DIALECTIC_LEVELS__MAX__MAX_TOOL_ITERATIONS: "10"
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    volumes:
-      - ../config/memobase.yaml:/app/config.yaml
+    restart: unless-stopped
+
+  honcho-deriver:
+    image: ghcr.io/plastic-labs/honcho:latest
+    profiles: ["honcho"]
+    depends_on:
+      honcho-db:
+        condition: service_healthy
+      honcho-migrate:
+        condition: service_completed_successfully
+    command: ["python", "-m", "src.deriver"]
+    environment:
+      DB_CONNECTION_URI: "postgresql+psycopg://honcho:${HONCHO_DB_PASSWORD:-honcho}@honcho-db:5432/honcho"
+      LLM_OPENAI_BASE_URL: "${HONCHO_LLM_BASE_URL:-https://openrouter.ai/api/v1}"
+      LLM_OPENAI_API_KEY: "${HONCHO_LLM_API_KEY:-}"
+      LLM_EMBEDDING_PROVIDER: "openai"
+      DERIVER_PROVIDER: "openai"
+      DERIVER_MODEL: "${HONCHO_LLM_MODEL:-openrouter/auto}"
+      SUMMARY_PROVIDER: "openai"
+      SUMMARY_MODEL: "${HONCHO_LLM_MODEL:-openrouter/auto}"
+      DREAM_PROVIDER: "openai"
+      DREAM_MODEL: "${HONCHO_LLM_MODEL:-openrouter/auto}"
+      DIALECTIC_LEVELS__MINIMAL__PROVIDER: "openai"
+      DIALECTIC_LEVELS__MINIMAL__MODEL: "${HONCHO_LLM_MODEL:-openrouter/auto}"
+      DIALECTIC_LEVELS__MINIMAL__THINKING_BUDGET_TOKENS: "0"
+      DIALECTIC_LEVELS__MINIMAL__MAX_TOOL_ITERATIONS: "1"
+      DIALECTIC_LEVELS__LOW__PROVIDER: "openai"
+      DIALECTIC_LEVELS__LOW__MODEL: "${HONCHO_LLM_MODEL:-openrouter/auto}"
+      DIALECTIC_LEVELS__LOW__THINKING_BUDGET_TOKENS: "0"
+      DIALECTIC_LEVELS__LOW__MAX_TOOL_ITERATIONS: "5"
+      DIALECTIC_LEVELS__MEDIUM__PROVIDER: "openai"
+      DIALECTIC_LEVELS__MEDIUM__MODEL: "${HONCHO_LLM_MODEL:-openrouter/auto}"
+      DIALECTIC_LEVELS__MEDIUM__THINKING_BUDGET_TOKENS: "1024"
+      DIALECTIC_LEVELS__MEDIUM__MAX_TOOL_ITERATIONS: "2"
+      DIALECTIC_LEVELS__HIGH__PROVIDER: "openai"
+      DIALECTIC_LEVELS__HIGH__MODEL: "${HONCHO_LLM_MODEL:-openrouter/auto}"
+      DIALECTIC_LEVELS__HIGH__THINKING_BUDGET_TOKENS: "1024"
+      DIALECTIC_LEVELS__HIGH__MAX_TOOL_ITERATIONS: "4"
+      DIALECTIC_LEVELS__MAX__PROVIDER: "openai"
+      DIALECTIC_LEVELS__MAX__MODEL: "${HONCHO_LLM_MODEL:-openrouter/auto}"
+      DIALECTIC_LEVELS__MAX__THINKING_BUDGET_TOKENS: "2048"
+      DIALECTIC_LEVELS__MAX__MAX_TOOL_ITERATIONS: "10"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
   # Crawl4AI - LLM-ready web crawling (optional)
@@ -108,4 +176,4 @@ services:
 
 volumes:
   conduit-data:
-  memobase-pg:
+  honcho-pg:

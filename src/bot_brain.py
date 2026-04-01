@@ -773,12 +773,12 @@ class BotBrain:
                 cost=llm_result.cost,
             )
 
-        # Insert chat to Memobase
+        # Insert chat to Honcho
         if self.memory and all_replies:
             try:
                 self.memory.insert_chat(sender_jid, body, " ||| ".join(all_replies))
             except Exception as e:
-                logger.warning(f"Failed to insert chat to Memobase: {e}")
+                logger.warning(f"Failed to insert chat to Honcho: {e}")
 
         return ChatResult(replies=all_replies, needs_critic_review=needs_review)
 
@@ -906,7 +906,7 @@ class BotBrain:
             friends_impressions = self.memory.load_friends_impressions()
             capabilities = self.memory.load_capabilities()
 
-            # Get user context from Memobase if available
+            # Get user context from Honcho if available
             user_context = ""
             try:
                 user_context = self.memory.get_user_context(contact_jid)
@@ -962,12 +962,6 @@ class BotBrain:
             new_caps = data.get("capabilities_update")
             if new_caps and isinstance(new_caps, str) and new_caps.strip():
                 self.memory.save_capabilities(new_caps)
-
-            # Flush Memobase user data
-            try:
-                self.memory.flush_user(contact_jid)
-            except Exception:
-                pass
 
             logger.info(f"Memory updated after chat with {contact_jid}")
 
@@ -1823,13 +1817,13 @@ class BotBrain:
         self._cancel_reflection(sender_jid)
         self._cancel_critic(sender_jid)
 
-        # 3. Delete Memobase user data for this contact
+        # 3. Delete Honcho user data for this contact
         if self.memory:
             try:
                 self.memory.delete_user(sender_jid)
                 count += 1
             except Exception as e:
-                logger.warning(f"Failed to delete Memobase user {sender_jid}: {e}")
+                logger.warning(f"Failed to delete Honcho user {sender_jid}: {e}")
 
         # 4. Reset token budget for this contact
         if sender_jid in self._token_budgets:

@@ -7,6 +7,8 @@
 - 和人自然地交流、主动对话 和微信聊天一样 让它心里有你
 - 破除信息茧房。自己上网冲浪 从使用者的利益出发 寻找他真正需要的东西 
 
+我想让它给我推送我认知以外、又真正需要的东西。
+
 它有主动性。不是你问一句它答一句。
 
 它/它们可以由一人养育，也可以和好友一起养育。
@@ -168,7 +170,7 @@ scripts/           # install.sh、nctl.sh、uninstall.sh
          ↓
        LLMAgent (LLM 调用 + 技能执行)
          ↓
-       MemoryManager (Memobase 长期记忆 + 本地文件)
+       MemoryManager (Honcho 长期记忆 + 本地文件)
 ```
 
 Transport 层统一处理防抖、输入状态感知和命令路由。代码执行技能按优先级自动选择沙箱（Docker → bubblewrap → sandbox-exec → WSL2 → 无沙箱）。
