@@ -35,8 +35,13 @@ class CommandRouter:
         cmd = parts[0].lower()
 
         if cmd == "/surf":
-            self._reply(sender_id, "OK, going surfing now")
+            self._reply(sender_id, "OK")
             asyncio.create_task(self._run_surf(sender_id))
+            return True
+
+        if cmd == "/review":
+            self._reply(sender_id, "OK")
+            asyncio.create_task(self._run_review(sender_id))
             return True
 
         if cmd == "/start":
@@ -131,3 +136,31 @@ class CommandRouter:
                 await self.brain._surf_reply(sender_id, f"Error during surfing: {e}")
             except Exception:
                 self._reply(sender_id, f"Surfing error: {e}")
+
+    async def _run_review(self, sender_id: str):
+        """Run a manual critic review on the last reply to this contact."""
+        try:
+            history = self.brain.llm._get_history(sender_id)
+            if not history:
+                self._reply(sender_id, "No conversation history to review.")
+                return
+
+            # Find the last assistant reply
+            last_replies = []
+            for msg in reversed(history):
+                if msg.get("role") == "assistant":
+                    content = msg.get("content", "")
+                    # Strip timestamp prefix
+                    import re
+                    content = re.sub(r"^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] ", "", content)
+                    last_replies = [r.strip() for r in content.split("|||") if r.strip()]
+                    break
+
+            if not last_replies:
+                self._reply(sender_id, "No assistant reply found to review.")
+                return
+
+            await self.brain._do_critic_review(sender_id, last_replies)
+        except Exception as e:
+            logger.error(f"[{self.bot_name}] Manual review error: {e}", exc_info=True)
+            self._reply(sender_id, f"Review error: {e}")

@@ -529,6 +529,15 @@ if [[ "$LANG_CHOICE" == "2" ]]; then
     LANG_UI="zh"
 fi
 
+# ── Network accessibility check ──────────────────────────────────────────────
+
+NETWORK_GLOBAL=true
+if curl -sf --max-time 5 "https://www.google.com" &>/dev/null; then
+    NETWORK_GLOBAL=true
+else
+    NETWORK_GLOBAL=false
+fi
+
 echo ""
 
 # ── Step 0: Ensure we're inside the repo ─────────────────────────────────────
@@ -1183,6 +1192,11 @@ cat > "$GLOBAL_CONFIG" <<YAML
 # 界面语言 / UI Language (zh / en)
 language: "$LANG_UI"
 
+# 网络可及性 / Network accessibility
+# true = 可直接访问国际互联网（Google 等）/ Can access global internet (Google, etc.)
+# false = 在中国大陆防火墙内 / Behind China's GFW
+network_global: $NETWORK_GLOBAL
+
 # RSSHub 服务器地址 / RSSHub server URL
 rsshub_server: "$RSSHUB_URL"
 YAML
@@ -1266,12 +1280,12 @@ surfing:
   enabled: false
 YAML
 
-    # Crawl4AI
+    # Crawl4AI → maps to firecrawl config key (compatible API)
     if [[ "$USE_CRAWL4AI" == "true" ]]; then
         cat <<YAML
 
-# ── Crawl4AI ──
-crawl4ai:
+# ── 网页抓取 / Web Scraping (Crawl4AI) ──
+firecrawl:
   url: "$CRAWL4AI_URL"
 YAML
     fi

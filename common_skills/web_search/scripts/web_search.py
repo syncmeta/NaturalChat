@@ -29,11 +29,14 @@ async def _search_serper(query: str, max_results: int, api_key: str) -> str:
     return "\n\n".join(results) if results else "No relevant results found."
 
 async def _search_ddg(query: str, max_results: int) -> str:
-    from duckduckgo_search import DDGS
+    try:
+        from ddgs import DDGS
+    except ImportError:
+        from duckduckgo_search import DDGS
 
     def _sync_search():
         with DDGS() as ddgs:
-            return list(ddgs.text(query, max_results=max_results, region="cn-zh"))
+            return list(ddgs.text(query, max_results=max_results, region="wt-wt"))
 
     results_raw = await asyncio.get_event_loop().run_in_executor(None, _sync_search)
 

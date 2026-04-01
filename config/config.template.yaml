@@ -11,6 +11,12 @@
 # 可选 / Options: "zh" (中文), "en" (English)
 language: "zh"
 
+# ── 网络可及性 / Network Accessibility ──────────────────────────
+# 安装时自动检测 / Auto-detected during installation
+# true = 可直接访问 Google 等国际网站 / Can access global internet
+# false = 在中国大陆防火墙内 / Behind China's GFW
+network_global: true
+
 # ── RSSHub ──────────────────────────────────────────────────────
 # 为冲浪功能提供 RSS 源聚合
 # Provides RSS feed aggregation for the surfing feature

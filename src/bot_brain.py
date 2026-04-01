@@ -1135,7 +1135,10 @@ class BotBrain:
     async def _search_ddg_items(self, query: str, max_results: int = 5) -> List[dict]:
         """Search using DuckDuckGo and return structured results."""
         try:
-            from duckduckgo_search import DDGS
+            try:
+                from ddgs import DDGS
+            except ImportError:
+                from duckduckgo_search import DDGS
 
             def _sync_search():
                 with DDGS() as ddgs:
@@ -1175,20 +1178,57 @@ class BotBrain:
         return text[:char_limit]
 
     async def _open_web_page(self, url: str, char_limit: int = 2500) -> dict:
-        """Fetch and simplify a web page. Uses Firecrawl if configured, else raw HTTP."""
+        """Fetch and simplify a web page. Uses Firecrawl/Crawl4AI if configured, else raw HTTP."""
         if not url or not url.startswith(("http://", "https://")):
             return {"url": url, "content": "", "error": "Invalid URL"}
 
-        # Try Firecrawl first (better JS rendering and content extraction)
+        # Try Firecrawl / Crawl4AI first (better JS rendering and content extraction)
         firecrawl_url = self.config.get("firecrawl", {}).get("url", "") or os.environ.get("FIRECRAWL_URL", "")
         firecrawl_key = self.config.get("firecrawl", {}).get("api_key", "") or os.environ.get("FIRECRAWL_API_KEY", "")
         if firecrawl_url:
+            # Auto-detect: Crawl4AI uses /crawl, Firecrawl uses /v1/scrape
+            result = await self._open_web_page_crawl4ai(url, char_limit, firecrawl_url)
+            if not result.get("error"):
+                return result
+            # Fallback to Firecrawl API
             result = await self._open_web_page_firecrawl(url, char_limit, firecrawl_url, firecrawl_key)
             if not result.get("error"):
                 return result
-            logger.debug(f"[{self.bot_name}] Firecrawl failed for {url}: {result.get('error')}, falling back to raw HTTP")
+            logger.debug(f"[{self.bot_name}] Crawl service failed for {url}: {result.get('error')}, falling back to raw HTTP")
 
         return await self._open_web_page_raw(url, char_limit)
+
+    async def _open_web_page_crawl4ai(self, url: str, char_limit: int,
+                                      crawl_url: str) -> dict:
+        """Fetch a page via Crawl4AI API."""
+        try:
+            endpoint = crawl_url.rstrip("/") + "/crawl"
+            payload = {"urls": url, "priority": 10}
+
+            timeout = aiohttp.ClientTimeout(total=30)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(endpoint, json=payload, headers={"Content-Type": "application/json"}) as resp:
+                    if resp.status >= 400:
+                        return {"url": url, "content": "", "error": f"Crawl4AI HTTP {resp.status}"}
+                    data = await resp.json()
+
+            results = data.get("results", [])
+            if not results:
+                return {"url": url, "content": "", "error": "Crawl4AI returned no results"}
+
+            first = results[0] if isinstance(results, list) else results
+            markdown = first.get("markdown", "") or first.get("cleaned_html", "") or ""
+            title = first.get("metadata", {}).get("title", "") if isinstance(first.get("metadata"), dict) else ""
+            content = markdown[:char_limit] if markdown else ""
+
+            return {
+                "url": url,
+                "title": title[:200],
+                "content_type": "text/markdown",
+                "content": content,
+            }
+        except Exception as e:
+            return {"url": url, "content": "", "error": f"Crawl4AI: {e}"}
 
     async def _open_web_page_firecrawl(self, url: str, char_limit: int,
                                         firecrawl_url: str, api_key: str) -> dict:
@@ -1369,7 +1409,17 @@ class BotBrain:
                 logger.warning(f"[{self.bot_name}] Failed to fetch RSS for surfing: {e}")
 
         # Step 1: Plan queries
+        network_global = self.config.get("network_global", True)
+        network_note = ""
+        if not network_global:
+            network_note = (
+                "IMPORTANT: This server is behind China's GFW. Google, YouTube, Twitter/X, Reddit, "
+                "Wikipedia etc. are NOT accessible. Use Bing, Baidu, or domestic sites for searches. "
+                "Some RSS routes for foreign sites may also fail.\n"
+            )
+
         plan_input = (
+            f"{network_note}"
             f"Trigger mode: {trigger_mode}\n"
             f"Triggered by: {triggered_by or 'none, autonomous surfing'}\n"
             f"Current time: {datetime.now().isoformat()}\n"
@@ -1595,8 +1645,9 @@ class BotBrain:
 
         if trigger_mode == "manual":
             note = (
-                "You just browsed the web as requested. Share the results naturally. "
-                "Don't use a formal report tone or sound like you're submitting homework. "
+                "You just browsed the web as requested by the user. You MUST reply with what you found. "
+                "Do NOT output [SILENT]. Share the results naturally — don't use a formal report tone. "
+                "Even if nothing interesting was found, briefly mention what you searched and that nothing stood out. "
                 f"Internal surfing context:\n{context_note}"
             )
         else:
@@ -1609,6 +1660,10 @@ class BotBrain:
 
         self.llm.add_pending_note(note)
         replies = await self.llm.chat_blocking(target_jid, None)
+
+        # Manual trigger: guarantee a reply even if model returned empty/silent
+        if trigger_mode == "manual" and not replies:
+            replies = ["刚浏览了一圈，没找到什么特别的。"]
 
         for reply in replies:
             if reply:

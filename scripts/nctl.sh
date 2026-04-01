@@ -82,6 +82,8 @@ i18n() {
         en:menu_info) echo "Info — Show connection details" ;;
         zh:menu_info) echo "信息 — 显示连接详情" ;;
         en:menu_exit) echo "Exit" ;; zh:menu_exit) echo "退出" ;;
+        en:usage_hint) echo "Tip: bash nctl.sh [command]  e.g. status / start / stop / restart / logs / config / info" ;;
+        zh:usage_hint) echo "提示：bash nctl.sh [命令]  如 status / start / stop / restart / logs / config / info" ;;
 
         # ── Status ──
         en:status_title) echo "System Status" ;; zh:status_title) echo "系统状态" ;;
@@ -1217,6 +1219,8 @@ while true; do
     printf "  ${BOLD}│       $(i18n title)       │${NC}\n"
     printf "  ${BOLD}╰──────────────────────────────────────────╯${NC}\n"
     printf "  ${DIM}  %s${NC}\n" "$BASE_DIR"
+    echo ""
+    printf "  ${DIM}$(i18n usage_hint)${NC}\n"
 
     # Quick status line
     local mode

@@ -138,6 +138,22 @@ def create_bot(config: dict) -> BotInstance:
     prompt = config["_prompt"]
     bot_dir = config["_dir"]
 
+    # Inject environment context into system prompt
+    env_lines = []
+    network_global = config.get("network_global", True)
+    if not network_global:
+        env_lines.append(
+            "[Network environment] This server is behind China's GFW (Great Firewall). "
+            "Google, YouTube, Twitter/X, Reddit, Wikipedia and many international sites are NOT directly accessible. "
+            "Prefer domestic alternatives (Bing, Baidu, Bilibili, Weibo, Zhihu, etc.) when searching or recommending. "
+            "Some RSSHub routes for foreign sites may also fail."
+        )
+    lang = config.get("language", "en")
+    if lang == "zh":
+        env_lines.append("[Language preference] The user's preferred language is Chinese (中文). Default to Chinese in conversations unless the user writes in another language.")
+    if env_lines:
+        prompt = "\n".join(env_lines) + "\n\n" + prompt
+
     llm_config = config.get("llm", {})
     api_key = llm_config.get("api_key", "")
     base_url = llm_config.get("base_url", "https://api.openai.com/v1")
@@ -296,7 +312,7 @@ class BotManager:
 
             config = load_bot_config(bot_dir)
             if config:
-                for key in ("rsshub_server", "rss_poll_interval"):
+                for key in ("rsshub_server", "rss_poll_interval", "network_global", "language"):
                     if key in global_config:
                         config[key] = global_config[key]
                 bot = create_bot(config)
@@ -326,7 +342,7 @@ class BotManager:
             if not config:
                 logger.error(f"Failed to reload config for bot '{bot_name}'")
                 return False
-            for key in ("rsshub_server", "rss_poll_interval"):
+            for key in ("rsshub_server", "rss_poll_interval", "network_global", "language"):
                 if key in self.global_config:
                     config[key] = self.global_config[key]
             new_bot = create_bot(config)
