@@ -1,20 +1,43 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Node / Bun
+node_modules/
+dist/
+*.log
+
+# Environment & secrets
+.env
+.env.*
+/config.yaml
+
+# Bot instances (user data, not tracked)
+bots/
+!bots/_template/
+!bots/_template/**
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Test & coverage
+coverage/
+
+# Claude Code
+.claude/settings.local.json
+
+# Legacy Python (to be removed after rewrite)
 venv/
 .venv/
 __pycache__/
 *.pyc
-.DS_Store
-workspace/
-.claude/settings.local.json
 memobase/
 .install_state/
-bots/
-!bots/example/
-!bots/example/config.yaml
-!bots/example/secrets.yaml
-!bots/example/prompts/
-!bots/example/prompts/**
+workspace/
+local/
 *.tar.gz
-.env
 web_panel.yaml
 memobase-config.yaml
 config/config.yaml
@@ -22,6 +45,4 @@ config/secrets.yaml
 config/memobase.yaml
 !config/config.template.yaml
 !config/secrets.template.yaml
-local/
 !install.defaults.example
-/config.yaml

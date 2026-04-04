@@ -1,0 +1,19 @@
+# Bot 配置模板
+# 复制整个 _template 目录并重命名为你的 Bot 名称
+
+name: "我的机器人"
+description: "在这里描述你的机器人的性格和风格"
+
+# 模型覆盖（可选）
+# 不指定则使用全局配置中的默认模型
+# models:
+#   chat: "gpt-4o-mini"
+
+# 启用的渠道
+channels:
+  - type: "web"
+    enabled: true
+  # - type: "telegram"
+  #   enabled: true
+  # - type: "matrix"
+  #   enabled: true

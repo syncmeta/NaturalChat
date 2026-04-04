@@ -1,0 +1,9 @@
+api_base_url: "https://api.openai.com/v1"
+api_key: "sk-test-key-12345"
+models:
+  chat: "gpt-4o"
+  critic: "gpt-4o"
+  surf_planner: "gpt-4o-mini"
+  surf_evaluator: "gpt-4o-mini"
+  reflection: "gpt-4o"
+  summary: "gpt-4o-mini"

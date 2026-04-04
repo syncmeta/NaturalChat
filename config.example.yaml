@@ -1,0 +1,16 @@
+# NaturalChat 全局配置
+# 复制此文件为 config.yaml 并填入实际值
+
+# 模型提供商 API 配置
+api_base_url: "https://api.openai.com/v1"
+api_key: "sk-your-api-key-here"
+
+# 各任务默认模型
+# Bot 可以在自己的 config.yaml 中覆盖任意模型
+models:
+  chat: "gpt-4o"              # 对话
+  critic: "gpt-4o"            # 批评审查
+  surf_planner: "gpt-4o-mini" # 冲浪规划
+  surf_evaluator: "gpt-4o-mini" # 冲浪评估
+  reflection: "gpt-4o"        # 反思
+  summary: "gpt-4o-mini"      # 摘要

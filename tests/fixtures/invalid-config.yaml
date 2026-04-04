@@ -1,0 +1,10 @@
+# 故意写错的配置：缺少必填字段、类型错误
+api_base_url: "not-a-url"
+# api_key 缺失
+models:
+  chat: 12345
+  # critic 缺失
+  surf_planner: "gpt-4o-mini"
+  surf_evaluator: "gpt-4o-mini"
+  reflection: "gpt-4o"
+  summary: "gpt-4o-mini"

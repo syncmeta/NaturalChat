@@ -1,0 +1,15 @@
+# 开发环境：只启动依赖服务
+# 使用方式: docker compose -f docker-compose.dev.yaml up -d
+# Bot 进程在本地运行: bun run dev
+
+services:
+  honcho:
+    image: ghcr.io/plastic-labs/honcho:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - honcho-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  honcho-data:

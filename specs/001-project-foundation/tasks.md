@@ -12,12 +12,12 @@
 
 **Purpose**: 项目初始化，搭建可编译的空项目
 
-- [ ] T001 Initialize Bun project: create package.json with name "naturalchat", add dependencies (zod, yaml, pino) and devDependencies (typescript, vitest, eslint, prettier) in package.json
-- [ ] T002 Create tsconfig.json with strict: true, ES2022 target, moduleResolution bundler, paths alias "@/" → "src/"
-- [ ] T003 [P] Create .eslintrc.cjs and .prettierrc with project code style rules
-- [ ] T004 [P] Create .gitignore: add node_modules/, config.yaml, bots/*/, !bots/_template/, *.log, .env
-- [ ] T005 Create src/ directory structure per plan.md: src/config/, src/core/, src/core/interfaces/, src/utils/
-- [ ] T006 Create tests/ directory structure: tests/config/, tests/core/, tests/fixtures/
+- [X] T001 Initialize Bun project: create package.json with name "naturalchat", add dependencies (zod, yaml, pino) and devDependencies (typescript, vitest, eslint, prettier) in package.json
+- [X] T002 Create tsconfig.json with strict: true, ES2022 target, moduleResolution bundler, paths alias "@/" → "src/"
+- [X] T003 [P] Create .eslintrc.cjs and .prettierrc with project code style rules
+- [X] T004 [P] Create .gitignore: add node_modules/, config.yaml, bots/*/, !bots/_template/, *.log, .env
+- [X] T005 Create src/ directory structure per plan.md: src/config/, src/core/, src/core/interfaces/, src/utils/
+- [X] T006 Create tests/ directory structure: tests/config/, tests/core/, tests/fixtures/
 
 **Checkpoint**: `bun install` succeeds, empty project compiles with `bun run build`
 
@@ -27,9 +27,9 @@
 
 **Purpose**: 核心基础设施——日志、错误类型、通用工具。所有 User Story 都依赖这些。
 
-- [ ] T007 Implement logger with pino and sensitive field redaction (api_key, token, password) in src/utils/logger.ts
-- [ ] T008 [P] Define custom error types (ConfigError, BotLoadError) in src/utils/errors.ts
-- [ ] T009 [P] Create config.example.yaml with full annotated example (api_base_url, api_key, models with all 6 task defaults)
+- [X] T007 Implement logger with pino and sensitive field redaction (api_key, token, password) in src/utils/logger.ts
+- [X] T008 [P] Define custom error types (ConfigError, BotLoadError) in src/utils/errors.ts
+- [X] T009 [P] Create config.example.yaml with full annotated example (api_base_url, api_key, models with all 6 task defaults)
 
 **Checkpoint**: 日志和错误处理就绪，后续任务可以使用
 
@@ -43,13 +43,13 @@
 
 ### Implementation for User Story 1
 
-- [ ] T010 [P] [US1] Define Channel interface (start, stop, sendMessage, sendFile, sendTyping, onMessage) in src/core/interfaces/channel.ts
-- [ ] T011 [P] [US1] Define Brain interface (handleMessage, start, stop) in src/core/interfaces/brain.ts
-- [ ] T012 [P] [US1] Define LLMAgent interface (chat with messages and optional tools) in src/core/interfaces/llm-agent.ts
-- [ ] T013 [P] [US1] Define Memory interface (getContext, updateContext) in src/core/interfaces/memory.ts
-- [ ] T014 [P] [US1] Define SkillLoader interface (discover, loadSkill, getToolDefinitions, execute) per Anthropic Skills spec in src/core/interfaces/skill-loader.ts
-- [ ] T015 [US1] Create barrel export for all interfaces in src/core/interfaces/index.ts
-- [ ] T016 [US1] Define shared types (IncomingMessage, FilePayload, ChatResult, UserContext, Skill, SkillMeta, Tool) in src/core/types.ts
+- [X] T010 [P] [US1] Define Channel interface (start, stop, sendMessage, sendFile, sendTyping, onMessage) in src/core/interfaces/channel.ts
+- [X] T011 [P] [US1] Define Brain interface (handleMessage, start, stop) in src/core/interfaces/brain.ts
+- [X] T012 [P] [US1] Define LLMAgent interface (chat with messages and optional tools) in src/core/interfaces/llm-agent.ts
+- [X] T013 [P] [US1] Define Memory interface (getContext, updateContext) in src/core/interfaces/memory.ts
+- [X] T014 [P] [US1] Define SkillLoader interface (discover, loadSkill, getToolDefinitions, execute) per Anthropic Skills spec in src/core/interfaces/skill-loader.ts
+- [X] T015 [US1] Create barrel export for all interfaces in src/core/interfaces/index.ts
+- [X] T016 [US1] Define shared types (IncomingMessage, FilePayload, ChatResult, UserContext, Skill, SkillMeta, Tool) in src/core/types.ts
 
 **Checkpoint**: `bun run build` 通过，所有接口可被引用
 
@@ -63,13 +63,13 @@
 
 ### Implementation for User Story 2
 
-- [ ] T017 [US2] Define Zod schemas (GlobalConfigSchema, ModelConfigSchema, BotConfigSchema, BotSecretsSchema, ChannelEntrySchema) in src/config/schema.ts
-- [ ] T018 [US2] Export TypeScript types derived from schemas (GlobalConfig, ModelConfig, BotConfig, BotSecrets, ChannelEntry, ResolvedBotConfig) in src/config/types.ts
-- [ ] T019 [US2] Implement config loader: readYaml, parseGlobalConfig, parseBotConfig, parseBotSecrets, mergeModelConfig (Bot overrides global defaults) in src/config/loader.ts
-- [ ] T020 [US2] Implement Zod error formatter: convert ZodError to human-readable Chinese messages with field path, expected type, actual value in src/config/error-formatter.ts
-- [ ] T021 [US2] Write tests for Zod schemas: valid config passes, missing required field fails with clear message, wrong type fails, partial model override merges correctly in tests/config/schema.test.ts
-- [ ] T022 [US2] Write tests for config loader: load valid YAML, load invalid YAML, merge bot models with global defaults, missing secrets file returns empty in tests/config/loader.test.ts
-- [ ] T023 [US2] Create test fixtures: tests/fixtures/valid-config.yaml, tests/fixtures/invalid-config.yaml, tests/fixtures/bots/test-bot/config.yaml, tests/fixtures/bots/test-bot/secrets.yaml, tests/fixtures/bots/broken-bot/config.yaml
+- [X] T017 [US2] Define Zod schemas (GlobalConfigSchema, ModelConfigSchema, BotConfigSchema, BotSecretsSchema, ChannelEntrySchema) in src/config/schema.ts
+- [X] T018 [US2] Export TypeScript types derived from schemas (GlobalConfig, ModelConfig, BotConfig, BotSecrets, ChannelEntry, ResolvedBotConfig) in src/config/types.ts
+- [X] T019 [US2] Implement config loader: readYaml, parseGlobalConfig, parseBotConfig, parseBotSecrets, mergeModelConfig (Bot overrides global defaults) in src/config/loader.ts
+- [X] T020 [US2] Implement Zod error formatter: convert ZodError to human-readable Chinese messages with field path, expected type, actual value in src/config/error-formatter.ts
+- [X] T021 [US2] Write tests for Zod schemas: valid config passes, missing required field fails with clear message, wrong type fails, partial model override merges correctly in tests/config/schema.test.ts
+- [X] T022 [US2] Write tests for config loader: load valid YAML, load invalid YAML, merge bot models with global defaults, missing secrets file returns empty in tests/config/loader.test.ts
+- [X] T023 [US2] Create test fixtures: tests/fixtures/valid-config.yaml, tests/fixtures/invalid-config.yaml, tests/fixtures/bots/test-bot/config.yaml, tests/fixtures/bots/test-bot/secrets.yaml, tests/fixtures/bots/broken-bot/config.yaml
 
 **Checkpoint**: `bun test tests/config/` 全部通过
 
@@ -83,11 +83,11 @@
 
 ### Implementation for User Story 3
 
-- [ ] T024 [US3] Implement BotInstance class: constructor takes ResolvedBotConfig, holds optional module slots (channels, brain, memory, skillLoader), start() and stop() methods (empty impl for now) in src/core/bot-instance.ts
-- [ ] T025 [US3] Implement BotManager: discover(botsDir) scans for subdirectories, loadAll(globalConfig) loads and validates each bot config, startAll() creates and starts BotInstances, stopAll() stops all in src/core/bot-manager.ts
-- [ ] T026 [US3] Implement main entry point: load global config, create BotManager, discover and start all bots, register SIGTERM/SIGINT handlers with 10s timeout in src/index.ts
-- [ ] T027 [US3] Write tests for BotManager: discovers bots in directory, skips non-directories and _template, loads valid bot, skips invalid bot without affecting others, stopAll calls stop on each instance in tests/core/bot-manager.test.ts
-- [ ] T028 [US3] Write tests for BotInstance: creates with resolved config, start/stop lifecycle in tests/core/bot-instance.test.ts
+- [X] T024 [US3] Implement BotInstance class: constructor takes ResolvedBotConfig, holds optional module slots (channels, brain, memory, skillLoader), start() and stop() methods (empty impl for now) in src/core/bot-instance.ts
+- [X] T025 [US3] Implement BotManager: discover(botsDir) scans for subdirectories, loadAll(globalConfig) loads and validates each bot config, startAll() creates and starts BotInstances, stopAll() stops all in src/core/bot-manager.ts
+- [X] T026 [US3] Implement main entry point: load global config, create BotManager, discover and start all bots, register SIGTERM/SIGINT handlers with 10s timeout in src/index.ts
+- [X] T027 [US3] Write tests for BotManager: discovers bots in directory, skips non-directories and _template, loads valid bot, skips invalid bot without affecting others, stopAll calls stop on each instance in tests/core/bot-manager.test.ts
+- [X] T028 [US3] Write tests for BotInstance: creates with resolved config, start/stop lifecycle in tests/core/bot-instance.test.ts
 
 **Checkpoint**: `bun start` 启动系统，发现并加载 Bot，SIGTERM 优雅关闭
 
@@ -101,9 +101,9 @@
 
 ### Implementation for User Story 4
 
-- [ ] T029 [US4] Add package.json scripts: "dev" (bun --watch src/index.ts), "start" (bun src/index.ts), "build" (tsc --noEmit), "test" (vitest)
-- [ ] T030 [US4] Create docker-compose.dev.yaml: Honcho service only (for dev, bot process runs locally)
-- [ ] T031 [US4] Create bots/_template/ directory with example config.yaml, secrets.yaml, prompts/.gitkeep, skills/.gitkeep, data/.gitkeep
+- [X] T029 [US4] Add package.json scripts: "dev" (bun --watch src/index.ts), "start" (bun src/index.ts), "build" (tsc --noEmit), "test" (vitest)
+- [X] T030 [US4] Create docker-compose.dev.yaml: Honcho service only (for dev, bot process runs locally)
+- [X] T031 [US4] Create bots/_template/ directory with example config.yaml, secrets.yaml, prompts/.gitkeep, skills/.gitkeep, data/.gitkeep
 
 **Checkpoint**: `bun run dev` 启动并监控文件变更，修改文件后自动重启
 
@@ -113,9 +113,9 @@
 
 **Purpose**: 整理和验证
 
-- [ ] T032 [P] Verify all interfaces compile correctly: run `bun run build` with zero errors
-- [ ] T033 [P] Run full test suite: `bun test` with all tests passing
-- [ ] T034 Verify end-to-end: create a test bot in bots/, run `bun start`, check logs show bot discovered and loaded, send SIGTERM, verify clean exit
+- [X] T032 [P] Verify all interfaces compile correctly: run `bun run build` with zero errors
+- [X] T033 [P] Run full test suite: `bun test` with all tests passing
+- [X] T034 Verify end-to-end: create a test bot in bots/, run `bun start`, check logs show bot discovered and loaded, send SIGTERM, verify clean exit
 
 ---
 
