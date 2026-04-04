@@ -8,6 +8,7 @@ import { WebChannel } from "../channels/web/web-channel.js";
 import { OpenAIAgent } from "../llm/openai-agent.js";
 import { SimpleBrain } from "../brain/simple-brain.js";
 import { FileMemory } from "../memory/file-memory.js";
+import { PromptRegistry } from "../prompt/prompt-registry.js";
 import { BotLoadError } from "../utils/errors.js";
 import logger from "../utils/logger.js";
 
@@ -76,7 +77,11 @@ export class BotManager {
         await memory.init();
         instance.memory = memory;
 
-        // Wire up brain (with memory)
+        // Wire up prompt registry
+        const promptRegistry = new PromptRegistry(resolved.botDir);
+        await promptRegistry.load();
+
+        // Wire up brain (with memory + prompt registry)
         const llmAgent = new OpenAIAgent({
           baseURL: globalConfig.api_base_url,
           apiKey: globalConfig.api_key,
@@ -87,6 +92,7 @@ export class BotManager {
           botName: resolved.name,
           botDescription: resolved.description,
           memory,
+          promptRegistry,
         });
 
         this.instances.push(instance);

@@ -4,7 +4,7 @@ import type { Memory } from "../core/interfaces/memory.js";
 import type { IncomingMessage, ChatMessage } from "../core/types.js";
 import { ConversationHistory } from "../llm/conversation-history.js";
 import { AccessControl, type AccessMode, type AccessResult } from "./access-control.js";
-import { PromptBuilder } from "./prompt-builder.js";
+import { PromptRegistry, DEFAULT_BEHAVIOR_PROMPT } from "../prompt/prompt-registry.js";
 import { splitReply } from "./reply-splitter.js";
 import logger from "../utils/logger.js";
 
@@ -16,6 +16,7 @@ export interface SimpleBrainConfig {
   maxHistoryTokens?: number;
   ownerId?: string;
   memory?: Memory;
+  promptRegistry?: PromptRegistry;
 }
 
 /**
@@ -28,7 +29,9 @@ export class SimpleBrain implements Brain {
   private readonly llmAgent: LLMAgent;
   private readonly memory: Memory | null;
   private readonly accessControl: AccessControl;
-  private readonly promptBuilder: PromptBuilder;
+  private readonly promptRegistry: PromptRegistry | null;
+  private readonly botName: string;
+  private readonly botDescription: string;
   private readonly maxHistoryTokens: number;
   private readonly log;
 
@@ -38,6 +41,9 @@ export class SimpleBrain implements Brain {
   constructor(llmAgent: LLMAgent, config: SimpleBrainConfig) {
     this.llmAgent = llmAgent;
     this.memory = config.memory ?? null;
+    this.promptRegistry = config.promptRegistry ?? null;
+    this.botName = config.botName;
+    this.botDescription = config.botDescription;
     this.maxHistoryTokens = config.maxHistoryTokens ?? 4000;
     this.log = logger.child({ module: "Brain", bot: config.botName });
 
@@ -45,12 +51,6 @@ export class SimpleBrain implements Brain {
     if (config.ownerId) {
       this.accessControl.setOwner(config.ownerId);
     }
-
-    this.promptBuilder = new PromptBuilder({
-      botDir: config.botDir,
-      botName: config.botName,
-      botDescription: config.botDescription,
-    });
   }
 
   async handleMessage(message: IncomingMessage): Promise<string[]> {
@@ -71,7 +71,7 @@ export class SimpleBrain implements Brain {
     const history = this.getOrCreateHistory(contactId);
 
     // 4. 构建 system prompt（含记忆上下文）
-    let systemPrompt = await this.promptBuilder.getSystemPrompt();
+    let systemPrompt = this.buildBaseSystemPrompt();
 
     if (this.memory) {
       try {
@@ -140,6 +140,33 @@ export class SimpleBrain implements Brain {
   async stop(): Promise<void> {
     this.histories.clear();
     this.log.info("Brain 停止");
+  }
+
+  /**
+   * 构建基础 system prompt
+   * 优先使用 PromptRegistry 的 "system" prompt，否则使用默认行为 prompt
+   */
+  private buildBaseSystemPrompt(): string {
+    const parts: string[] = [];
+
+    // Bot 基本信息
+    parts.push(`你的名字是 ${this.botName}。`);
+    if (this.botDescription) {
+      parts.push(this.botDescription);
+    }
+
+    // 从 PromptRegistry 获取 system prompt，或使用默认
+    if (this.promptRegistry) {
+      const customPrompt = this.promptRegistry.get("system", {
+        botName: this.botName,
+        botDescription: this.botDescription,
+      });
+      parts.push(customPrompt ?? DEFAULT_BEHAVIOR_PROMPT);
+    } else {
+      parts.push(DEFAULT_BEHAVIOR_PROMPT);
+    }
+
+    return parts.join("\n\n");
   }
 
   private getOrCreateHistory(contactId: string): ConversationHistory {
