@@ -1,5 +1,6 @@
 import type { Brain } from "../core/interfaces/brain.js";
 import type { LLMAgent } from "../core/interfaces/llm-agent.js";
+import type { Memory } from "../core/interfaces/memory.js";
 import type { IncomingMessage, ChatMessage } from "../core/types.js";
 import { ConversationHistory } from "../llm/conversation-history.js";
 import { AccessControl, type AccessMode, type AccessResult } from "./access-control.js";
@@ -14,6 +15,7 @@ export interface SimpleBrainConfig {
   accessMode?: AccessMode;
   maxHistoryTokens?: number;
   ownerId?: string;
+  memory?: Memory;
 }
 
 /**
@@ -24,6 +26,7 @@ export interface SimpleBrainConfig {
  */
 export class SimpleBrain implements Brain {
   private readonly llmAgent: LLMAgent;
+  private readonly memory: Memory | null;
   private readonly accessControl: AccessControl;
   private readonly promptBuilder: PromptBuilder;
   private readonly maxHistoryTokens: number;
@@ -34,6 +37,7 @@ export class SimpleBrain implements Brain {
 
   constructor(llmAgent: LLMAgent, config: SimpleBrainConfig) {
     this.llmAgent = llmAgent;
+    this.memory = config.memory ?? null;
     this.maxHistoryTokens = config.maxHistoryTokens ?? 4000;
     this.log = logger.child({ module: "Brain", bot: config.botName });
 
@@ -66,8 +70,26 @@ export class SimpleBrain implements Brain {
     // 3. 获取或创建对话历史
     const history = this.getOrCreateHistory(contactId);
 
-    // 4. 构建 system prompt
-    const systemPrompt = await this.promptBuilder.getSystemPrompt();
+    // 4. 构建 system prompt（含记忆上下文）
+    let systemPrompt = await this.promptBuilder.getSystemPrompt();
+
+    if (this.memory) {
+      try {
+        const userCtx = await this.memory.getContext(contactId);
+        if (userCtx.summary) {
+          systemPrompt += `\n\n## 关于这个用户的记忆\n${userCtx.summary}`;
+        }
+        if (userCtx.profile && Object.keys(userCtx.profile).length > 0) {
+          const profileStr = Object.entries(userCtx.profile)
+            .map(([k, v]) => `- ${k}: ${v}`)
+            .join("\n");
+          systemPrompt += `\n\n## 用户画像\n${profileStr}`;
+        }
+      } catch (e) {
+        this.log.warn({ err: e, contactId }, "读取记忆失败，继续处理");
+      }
+    }
+
     history.setSystem(systemPrompt);
 
     // 5. 添加用户消息
@@ -95,7 +117,18 @@ export class SimpleBrain implements Brain {
       history.add({ role: "assistant", content: replyText });
     }
 
-    // 8. 拆分回复
+    // 8. 更新记忆
+    if (this.memory) {
+      try {
+        await this.memory.updateContext(contactId, {
+          lastInteraction: new Date(),
+        });
+      } catch (e) {
+        this.log.warn({ err: e, contactId }, "更新记忆失败");
+      }
+    }
+
+    // 9. 拆分回复
     const replies = splitReply(replyText);
     return replies.length > 0 ? replies : [""];
   }

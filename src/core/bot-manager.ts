@@ -7,6 +7,7 @@ import type { Channel } from "./interfaces/channel.js";
 import { WebChannel } from "../channels/web/web-channel.js";
 import { OpenAIAgent } from "../llm/openai-agent.js";
 import { SimpleBrain } from "../brain/simple-brain.js";
+import { FileMemory } from "../memory/file-memory.js";
 import { BotLoadError } from "../utils/errors.js";
 import logger from "../utils/logger.js";
 
@@ -70,7 +71,12 @@ export class BotManager {
         // Wire up channels
         instance.channels = this.createChannels(resolved);
 
-        // Wire up brain
+        // Wire up memory
+        const memory = new FileMemory(resolved.botDir);
+        await memory.init();
+        instance.memory = memory;
+
+        // Wire up brain (with memory)
         const llmAgent = new OpenAIAgent({
           baseURL: globalConfig.api_base_url,
           apiKey: globalConfig.api_key,
@@ -80,6 +86,7 @@ export class BotManager {
           botDir: resolved.botDir,
           botName: resolved.name,
           botDescription: resolved.description,
+          memory,
         });
 
         this.instances.push(instance);
