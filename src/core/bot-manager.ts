@@ -9,6 +9,7 @@ import { OpenAIAgent } from "../llm/openai-agent.js";
 import { SimpleBrain } from "../brain/simple-brain.js";
 import { FileMemory } from "../memory/file-memory.js";
 import { PromptRegistry } from "../prompt/prompt-registry.js";
+import { FileSkillLoader } from "../skill/file-skill-loader.js";
 import { BotLoadError } from "../utils/errors.js";
 import logger from "../utils/logger.js";
 
@@ -80,6 +81,15 @@ export class BotManager {
         // Wire up prompt registry
         const promptRegistry = new PromptRegistry(resolved.botDir);
         await promptRegistry.load();
+
+        // Wire up skill loader
+        const skillLoader = new FileSkillLoader();
+        const skillDirs = [
+          join(resolved.botDir, "skills"),
+          join(resolve(resolved.botDir, ".."), "..", "common_skills"),
+        ];
+        await skillLoader.discover(skillDirs);
+        instance.skillLoader = skillLoader;
 
         // Wire up brain (with memory + prompt registry)
         const llmAgent = new OpenAIAgent({
