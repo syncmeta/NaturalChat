@@ -1,12 +1,13 @@
 import type { ResolvedBotConfig } from "../config/types.js";
 import type { Channel, Brain, Memory, SkillLoader } from "./interfaces/index.js";
+import { ChannelDispatcher } from "./channel-dispatcher.js";
 import logger from "../utils/logger.js";
 
 /**
  * BotInstance — 运行时 Bot 容器
  *
  * 持有配置和可选的功能模块引用。
- * 本阶段 start/stop 为空实现，后续 Spec 注入具体模块。
+ * 当 Brain 和 Channel 都已注入时，自动创建 ChannelDispatcher 连接它们。
  */
 export class BotInstance {
   readonly config: ResolvedBotConfig;
@@ -15,6 +16,7 @@ export class BotInstance {
   memory: Memory | null = null;
   skillLoader: SkillLoader | null = null;
 
+  private dispatcher: ChannelDispatcher | null = null;
   private readonly log;
 
   constructor(config: ResolvedBotConfig) {
@@ -37,11 +39,25 @@ export class BotInstance {
       this.log.info("Brain 已启动");
     }
 
+    // 如果 Brain 和 Channel 都就绪，创建并启动调度器
+    if (this.brain && this.channels.length > 0) {
+      this.dispatcher = new ChannelDispatcher(this.channels, this.brain);
+      this.dispatcher.start();
+      this.log.info("调度器已启动");
+    }
+
     this.log.info("Bot 启动完成");
   }
 
   async stop(): Promise<void> {
     this.log.info("Bot 停止中...");
+
+    // 停止调度器（先于 Brain 和 Channel）
+    if (this.dispatcher) {
+      this.dispatcher.stop();
+      this.dispatcher = null;
+      this.log.info("调度器已停止");
+    }
 
     // 停止 Brain
     if (this.brain) {
