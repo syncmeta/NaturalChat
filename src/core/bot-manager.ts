@@ -2,7 +2,11 @@ import { readdir, stat } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { BotInstance } from "./bot-instance.js";
 import { parseBotConfig, parseBotSecrets, resolveBotConfig } from "../config/loader.js";
-import type { GlobalConfig } from "../config/types.js";
+import type { GlobalConfig, ResolvedBotConfig } from "../config/types.js";
+import type { Channel } from "./interfaces/channel.js";
+import { WebChannel } from "../channels/web/web-channel.js";
+import { OpenAIAgent } from "../llm/openai-agent.js";
+import { SimpleBrain } from "../brain/simple-brain.js";
 import { BotLoadError } from "../utils/errors.js";
 import logger from "../utils/logger.js";
 
@@ -62,6 +66,22 @@ export class BotManager {
         const resolved = resolveBotConfig(botConfig, botSecrets, globalConfig, botDir);
 
         const instance = new BotInstance(resolved);
+
+        // Wire up channels
+        instance.channels = this.createChannels(resolved);
+
+        // Wire up brain
+        const llmAgent = new OpenAIAgent({
+          baseURL: globalConfig.api_base_url,
+          apiKey: globalConfig.api_key,
+          defaultModel: resolved.models.chat,
+        });
+        instance.brain = new SimpleBrain(llmAgent, {
+          botDir: resolved.botDir,
+          botName: resolved.name,
+          botDescription: resolved.description,
+        });
+
         this.instances.push(instance);
 
         log.info({ bot: resolved.name, dir: botDir }, "Bot 加载成功");
@@ -125,5 +145,28 @@ export class BotManager {
   /** 获取所有实例（只读） */
   getInstances(): readonly BotInstance[] {
     return this.instances;
+  }
+
+  /**
+   * 根据 Bot 配置创建 Channel 实例
+   */
+  private createChannels(config: ResolvedBotConfig): Channel[] {
+    const channels: Channel[] = [];
+    let webPort = 3000; // 基础端口，多 Bot 时递增
+
+    for (const entry of config.channels) {
+      if (!entry.enabled) continue;
+
+      switch (entry.type) {
+        case "web":
+          channels.push(new WebChannel({ port: webPort++ }));
+          break;
+        // 后续 Channel 实现在此添加
+        default:
+          log.warn({ type: entry.type, bot: config.name }, "未知的 Channel 类型，跳过");
+      }
+    }
+
+    return channels;
   }
 }
