@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { SimpleBrain } from "../../src/brain/simple-brain.js";
 import type { LLMAgent } from "../../src/core/interfaces/llm-agent.js";
-import type { IncomingMessage } from "../../src/core/types.js";
+import type { Memory } from "../../src/core/interfaces/memory.js";
+import type { IncomingMessage, UserContext } from "../../src/core/types.js";
 
 function makeMockAgent(reply = "你好"): LLMAgent {
   return {
@@ -164,5 +165,107 @@ describe("SimpleBrain", () => {
 
     await expect(brain.start()).resolves.toBeUndefined();
     await expect(brain.stop()).resolves.toBeUndefined();
+  });
+
+  describe("memory integration", () => {
+    function makeMockMemory(ctx?: Partial<UserContext>): Memory {
+      return {
+        getContext: vi.fn().mockResolvedValue({
+          contactId: "user:1",
+          ...ctx,
+        }),
+        updateContext: vi.fn().mockResolvedValue(undefined),
+      };
+    }
+
+    it("injects memory summary into system prompt", async () => {
+      const agent = makeMockAgent("好的");
+      const memory = makeMockMemory({ summary: "用户喜欢编程" });
+
+      const brain = new SimpleBrain(agent, {
+        botDir: "/tmp/test",
+        botName: "小助手",
+        botDescription: "",
+        memory,
+      });
+
+      await brain.handleMessage(makeMsg("user:1", "你好"));
+
+      // Verify system message contains memory
+      const messages = (agent.chat as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const systemMsg = messages.find((m: { role: string }) => m.role === "system");
+      expect(systemMsg.content).toContain("用户喜欢编程");
+    });
+
+    it("injects user profile into system prompt", async () => {
+      const agent = makeMockAgent("好的");
+      const memory = makeMockMemory({
+        profile: { lang: "zh", city: "上海" },
+      });
+
+      const brain = new SimpleBrain(agent, {
+        botDir: "/tmp/test",
+        botName: "小助手",
+        botDescription: "",
+        memory,
+      });
+
+      await brain.handleMessage(makeMsg("user:1", "你好"));
+
+      const messages = (agent.chat as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const systemMsg = messages.find((m: { role: string }) => m.role === "system");
+      expect(systemMsg.content).toContain("lang");
+      expect(systemMsg.content).toContain("上海");
+    });
+
+    it("updates lastInteraction after reply", async () => {
+      const agent = makeMockAgent("好的");
+      const memory = makeMockMemory();
+
+      const brain = new SimpleBrain(agent, {
+        botDir: "/tmp/test",
+        botName: "小助手",
+        botDescription: "",
+        memory,
+      });
+
+      await brain.handleMessage(makeMsg("user:1", "你好"));
+
+      expect(memory.updateContext).toHaveBeenCalledWith("user:1", {
+        lastInteraction: expect.any(Date),
+      });
+    });
+
+    it("continues if memory getContext fails", async () => {
+      const agent = makeMockAgent("好的");
+      const memory: Memory = {
+        getContext: vi.fn().mockRejectedValue(new Error("disk error")),
+        updateContext: vi.fn().mockResolvedValue(undefined),
+      };
+
+      const brain = new SimpleBrain(agent, {
+        botDir: "/tmp/test",
+        botName: "小助手",
+        botDescription: "",
+        memory,
+      });
+
+      const replies = await brain.handleMessage(makeMsg("user:1", "你好"));
+      expect(replies[0]).toBe("好的");
+      expect(agent.chat).toHaveBeenCalled();
+    });
+
+    it("works without memory (backward compatible)", async () => {
+      const agent = makeMockAgent("好的");
+      const brain = new SimpleBrain(agent, {
+        botDir: "/tmp/test",
+        botName: "小助手",
+        botDescription: "",
+        // no memory
+      });
+
+      const replies = await brain.handleMessage(makeMsg("user:1", "你好"));
+      expect(replies[0]).toBe("好的");
+    });
   });
 });
