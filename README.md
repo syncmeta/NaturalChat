@@ -1,45 +1,31 @@
-# NaturalChat (Archived)
+# 自然对话 NaturalChat
 
-**This project has been discontinued.** The successor is [BeyondBubble](https://github.com/syncmeta/BeyondBubble).
+> **本项目已停止开发。** 后续开发移至 [BeyondBubble](https://github.com/syncmeta/BeyondBubble)。
+>
+> Python 版积累了太多技术债——最初围绕 XMPP 设计，后来核心逻辑反复改写但一直堆在同一堆文件里，bot_brain.py 膨胀到了 1800 多行。后来尝试用 TypeScript 重写（本仓库 `src/` 目录），做了 8 个模块、154 个测试，但架构方向不对：记忆系统该接 Honcho 结果写了个 JSON 文件存储；技能系统能解析但没接进对话流程；Brain 又在往老代码的大一统方向走。不如从头来。
 
----
+[English](README_EN.md)
 
-## What was this
+两大目标：
 
-NaturalChat was an AI chatbot framework with two goals:
+- 和人自然地交流、主动对话 和微信聊天一样 让它心里有你
+- 破除信息茧房。自己上网冲浪 从使用者的利益出发 寻找他真正需要的东西
 
-- Talk to people naturally, like a friend on WeChat — not a customer service bot
-- Break information bubbles: proactively browse the web and surface things the user needs but doesn't know to look for
+我想让它给我推送我认知以外、又真正需要的东西。
 
-It supported Matrix, Telegram, Feishu, XMPP, and a web panel. The original version was written in Python.
+它有主动性。不是你问一句它答一句。
 
-## Why it stopped
+它/它们可以由一人养育，也可以和好友一起养育。
 
-The Python codebase accumulated too much technical debt — it started as XMPP-centric, then the core logic went through multiple rewrites while staying in the same files. `bot_brain.py` grew to 1800+ lines. A TypeScript rewrite was attempted (the `src/` directory in this repo), but it ran into its own problems:
 
-- **Memory system**: The spec called for Honcho (a proper memory service with sessions, vector search, auto-summarization). What got built was `FileMemory` — a JSON file per user. Just `JSON.stringify` to disk. Not a substitute.
-- **Skill system**: Partially follows the Anthropic Agent Skills format (SKILL.md with YAML frontmatter), but the execute loop was never wired into the conversation flow. Skills can be discovered and parsed, but the Brain never actually calls them.
-- **Token trimming**: Uses character-count heuristics instead of tiktoken. No summarization of dropped messages — old context is simply lost.
-- **Brain architecture**: `SimpleBrain` was becoming the same monolith as the old `bot_brain.py` — access control, memory injection, prompt building, history management all crammed into one class.
 
-The rewrite got 8 specs done (154 tests passing) but the architecture wasn't heading in the right direction. Better to start fresh with lessons learned.
+主要不是想做助手或工具。助手类应用大把人做，我没必要重复造轮子。
 
-## What the TypeScript rewrite achieved
+也不是想做标准的 AI 陪伴，解决的需求不在于缺爱了想找个 AI 陪或者无聊了想找个人聊天。
 
-| Spec | What it does |
-|------|-------------|
-| 001 project-foundation | TS/Bun skeleton, YAML+Zod config, BotManager lifecycle |
-| 002 channel-layer | Channel interface, message debouncing, Contact ID, dispatcher |
-| 003 llm-agent | OpenAI SDK integration, conversation history, token counting |
-| 004 bot-brain | Message pipeline, access control, reply splitting |
-| 005 channel-web | WebSocket channel with embedded chat UI |
-| 010 memory-system | File-based memory (not Honcho) |
-| 011 prompt-system | PromptRegistry with template variables |
-| 012 skill-system | SKILL.md parsing, FileSkillLoader (not wired to Brain) |
 
-## Successor
 
-Development continues at [BeyondBubble](https://github.com/syncmeta/BeyondBubble).
+我期望它能帮人生活得更好，方式可以是给出靠谱的建议、指出自己意识不到的问题、提供有价值的信息、提供更好的生活方式与计划……虽然这非常难实现，人都很难做到，但要想有一个这样的朋友也许比做一个这样的 AI 更难。不论如何，我先试试，弄来耍一耍。
 
 ## License
 
