@@ -1,6 +1,6 @@
 # NaturalChat
 
-> **This project has been discontinued.** Development continues at [BeyondBubble](https://github.com/syncmeta/BeyondBubble).
+> **This project has been discontinued.** Development continues at [BubbleBored](https://github.com/syncmeta/BubbleBored).
 >
 > This version accumulated too much technical debt — it started as XMPP-centric, then the core logic went through multiple rewrites while staying in the same files. `bot_brain.py` grew to 1800+ lines. On top of that, I didn't give the Agent clear enough direction from the start, nor did I use SDD (Spec-Driven Development) to structure the build — so it never took a holistic view, just kept patching things locally. A rewrite was attempted later, but it still couldn't shake off the legacy baggage. So I'm starting fresh in a new repo.
 

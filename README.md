@@ -1,6 +1,6 @@
 # 自然对话 NaturalChat
 
-> **本项目已停止开发。** 后续开发移至 [BeyondBubble](https://github.com/syncmeta/BeyondBubble)。
+> **本项目已停止开发。** 后续开发移至 [BubbleBored](https://github.com/syncmeta/BubbleBored)。
 >
 > 这一版积累了太多技术债——最初围绕 XMPP 设计，后来核心逻辑反复改写但一直堆在同一堆文件里，bot_brain.py 膨胀到了 1800 多行，而且一开始没给 Agent 说清楚，也没用 SDD 的方式来构建，它也没能从一个比较整体的角度来考虑，而只顾当下的修修补补。后来尝试重写，但感觉还是摆脱不了旧代码的糟粕，遂新开一个 repo 从头开始。
 
